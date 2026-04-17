@@ -44,5 +44,7 @@ def parse_stream(path: Path) -> list[Event]:
             data = json.loads(payload)
         except json.JSONDecodeError:
             continue
+        if not isinstance(data, dict):
+            continue
         events.append(Event(timestamp_ms=timestamp_ms, data=data))
     return events
