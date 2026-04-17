@@ -58,3 +58,5 @@ deploy-local: test build
 clean:
 	rm -rf precompute/out/*
 	rm -rf site/dist site/public/data/*.json
+	rm -rf site/test-results site/playwright-report
+	find . -type d -name __pycache__ -prune -exec rm -rf {} +
