@@ -1,5 +1,4 @@
 import { Group } from "@visx/group";
-import { AxisBottom } from "@visx/axis";
 import { scaleBand, scaleLinear } from "@visx/scale";
 import { Bar } from "@visx/shape";
 import { ParentSize } from "@visx/responsive";
@@ -16,8 +15,11 @@ type Set = {
 };
 
 const SESSIONS: ReadonlyArray<SessionKey> = ["FP1", "FP2", "FP3", "Q", "R"];
-const HEIGHT = 60;
-const MARGIN = { top: 4, right: 4, bottom: 26, left: 4 };
+const HEIGHT = 44;
+const BAR_AREA_HEIGHT = 22;  // y=4..26 for the bars
+const LABEL_Y = 38;           // label baseline; descenders end around y=41, well inside HEIGHT=44
+const LABEL_FONT_SIZE = 11;
+const MARGIN = { top: 4, right: 4, left: 4 };
 
 function firstToLastIndex(set: Set): [number, number] {
   return [SESSIONS.indexOf(set.first_seen_session), SESSIONS.indexOf(set.last_seen_session)];
@@ -34,10 +36,9 @@ export function UsageBar({ set }: { set: Set }) {
           range: [MARGIN.left, width - MARGIN.right],
           padding: 0.2,
         });
-        const innerHeight = HEIGHT - MARGIN.top - MARGIN.bottom;
         const yScale = scaleLinear<number>({
           domain: [0, 1],
-          range: [innerHeight, 0],
+          range: [BAR_AREA_HEIGHT, 0],
         });
         const [firstIdx, lastIdx] = firstToLastIndex(set);
 
@@ -54,28 +55,29 @@ export function UsageBar({ set }: { set: Set }) {
                     x={x}
                     y={yScale(1)}
                     width={bw}
-                    height={innerHeight - yScale(1)}
+                    height={BAR_AREA_HEIGHT - yScale(1)}
                     fill={active ? "currentColor" : "rgba(255,255,255,0.08)"}
                     rx={2}
                   />
                 );
               })}
             </Group>
-            <AxisBottom
-              top={HEIGHT - MARGIN.bottom}
-              scale={xScale}
-              tickFormat={(s) => String(s)}
-              stroke="transparent"
-              tickStroke="transparent"
-              hideTicks
-              tickLabelProps={() => ({
-                fill: "var(--color-f1-muted)",
-                fontSize: 11,
-                textAnchor: "middle",
-                dy: "1em",
-                fontFamily: "var(--font-mono)",
-              })}
-            />
+            {SESSIONS.map((s) => {
+              const cx = xScale(s)! + xScale.bandwidth() / 2;
+              return (
+                <text
+                  key={s}
+                  x={cx}
+                  y={LABEL_Y}
+                  fill="var(--color-f1-muted)"
+                  fontSize={LABEL_FONT_SIZE}
+                  textAnchor="middle"
+                  fontFamily="var(--font-mono)"
+                >
+                  {s}
+                </text>
+              );
+            })}
           </svg>
         );
       }}
