@@ -10,7 +10,7 @@ from typing import Literal
 from pydantic import BaseModel, ConfigDict, Field
 
 Compound = Literal["SOFT", "MEDIUM", "HARD", "INTERMEDIATE", "WET"]
-SessionKey = Literal["FP1", "FP2", "FP3", "Q", "R"]
+SessionKey = Literal["FP1", "FP2", "FP3", "SQ", "S", "Q", "R"]
 
 
 class _StrictModel(BaseModel):
