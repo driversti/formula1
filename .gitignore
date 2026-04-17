@@ -1,0 +1,46 @@
+# macOS
+.DS_Store
+
+# F1 raw live-timing archive (reproducible via download_f1.py — do not commit)
+/2018/
+/2019/
+/2020/
+/2021/
+/2023/
+/2024/
+/2025/
+/2026/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Node / site
+node_modules/
+dist/
+.vite/
+
+# Project artifacts
+precompute/out/
+site/public/data/
+
+# Superpowers brainstorm workspace
+.superpowers/
+
+# Claude Code / Superpowers workspace (user-local)
+.claude/
+.agents/
+skills-lock.json
+coverage.json
+
+# Logs
+*.log
+
+# IDE
+.idea/
+.vscode/
