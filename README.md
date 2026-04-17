@@ -10,7 +10,7 @@ Pre-race visualisation of each driver's **available tyre sets** for an upcoming 
 
 ## What this repo contains
 
-- **`seasons/`** — a local mirror of F1's public live-timing archive (`livetiming.formula1.com/static/`). Download scripts for seasons 2018–2026. Only the small metadata files needed to build the current race page are checked in; everything else is regenerable.
+- **`seasons/`** — download scripts for F1's public live-timing archive (`livetiming.formula1.com/static/`). Nothing under `seasons/20xx/` is checked in; CI fetches the minimum it needs on every build via `make fetch-race`.
 - **`precompute/`** — a Python 3.13 pipeline (Pydantic + pytest) that parses the raw `.jsonStream` files and emits a single validated JSON manifest per race.
 - **`site/`** — a React 19 + TypeScript + Vite + Tailwind frontend that consumes the manifest and renders the dashboard. Charts use `@visx`. E2E tests with Playwright.
 

@@ -66,7 +66,7 @@ make genzod
 
 ## Downloading more race data
 
-Most contributors don't need to — the committed Australia 2026 metadata is enough for local dev. If you do need other weekends:
+Most contributors don't need to — `make fetch-race` (run automatically by `make dev` / `make build`) pulls the minimum for the featured race. If you do want full weekends for exploration:
 
 ```bash
 cd seasons

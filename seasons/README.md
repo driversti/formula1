@@ -4,33 +4,37 @@ Local mirror of Formula 1's public live-timing archive plus the download/verific
 
 ```
 seasons/
-├── download_f1.py   # mirror downloader (run once to populate a season)
-├── verify_f1.py     # per-file verification + coverage report
-├── 2018/ … 2026/    # one directory per season (mostly gitignored)
+├── download_f1.py    # full-archive downloader (one-time or per-season)
+├── fetch_race.py     # minimal fetch for the currently-featured race (CI + fresh clones)
+├── verify_f1.py      # per-file verification + coverage report
+├── 2018/ … 2026/     # gitignored — regenerated on demand
 ```
 
-## What's checked in vs. gitignored
+## Nothing here is checked into git
 
-Only the small metadata files required by `make build` in CI are checked in — specifically, for the currently-featured race (**Australia 2026**):
+All race data is gitignored (`.gitignore:/seasons/20??/`). That keeps the repo lean — the full multi-GB archive stays on whoever downloads it, and CI pulls just what it needs on every run.
 
-- `SessionInfo.json`
-- `DriverList.jsonStream`
-- `TyreStintSeries.jsonStream`
-- `TimingAppData.jsonStream`
-
-Everything else (heavy telemetry like `CarData.z.jsonStream` and `Position.z.jsonStream`, plus all sessions for other races) is **gitignored**. It's fully regenerable via `download_f1.py`.
-
-## Downloading
+`fetch_race.py` fetches **only the four files `precompute` reads**, for every session in the currently-featured race weekend (Australia 2026). In total that's ~20 files, a few MB. It's idempotent — files already on disk are skipped.
 
 ```bash
 cd seasons
-uv run python download_f1.py                  # all seasons 2018–2026 (except 2022)
-uv run python download_f1.py 2024 2025        # specific seasons
+uv run python fetch_race.py                     # defaults: Australia 2026
+uv run python fetch_race.py --race-dir 2024/2024-06-09_Canadian_Grand_Prix --sessions 2024-06-07_Practice_1 2024-06-09_Race
 ```
 
-The downloader is idempotent — files present on disk are skipped, so it's safe to interrupt and resume.
+You normally don't need to invoke this yourself — `make build` / `make dev` / `make test-e2e` all depend on the `fetch-race` make target.
 
-Expect several GB of `.jsonStream` files per season. The F1 archive returns 403 for seasons 2022 and pre-2018.
+## Downloading a full season (optional)
+
+If you want everything — telemetry, weather, race-control messages, you name it:
+
+```bash
+cd seasons
+uv run python download_f1.py 2024 2025          # specific seasons
+uv run python download_f1.py                    # all seasons 2018–2026 (except 2022)
+```
+
+Expect several GB of `.jsonStream` files per season. Idempotent and resumable. The F1 archive returns 403 for seasons 2022 and pre-2018.
 
 ## Verifying
 
@@ -40,12 +44,13 @@ uv run python verify_f1.py
 
 Walks every session on disk, probes for missing files, retries transient errors, and writes `coverage.json` with a `{session: {file: status}}` matrix. Statuses: `ok`, `fetched`, `absent`, `error`.
 
-## Adding a new race to the committed set
+## Switching the featured race
 
-The committed exceptions live in [`.gitignore`](../.gitignore). To commit a different race's metadata:
+The default race is configured in two places that must stay in sync:
 
-1. Download it: `uv run python download_f1.py <year>`.
-2. Edit the `!/seasons/<year>/<meeting>/…` exception block in `.gitignore`.
-3. Stage the new files: `git add seasons/<year>/<meeting>/`.
+- `seasons/fetch_race.py` — `DEFAULT_RACE_DIR` + `DEFAULT_SESSIONS`
+- `precompute/src/f1/build.py` — `--race-dir` / `--season` / `--round` / `--slug` defaults
 
-See [`../docs/data-pipeline.md`](../docs/data-pipeline.md) for how the data is consumed downstream.
+Update both, drop a new `<slug>.json` filename in `Makefile` (`cp precompute/out/<slug>.json site/public/data/`), and adjust the site routes that load the manifest.
+
+See [`../docs/data-pipeline.md`](../docs/data-pipeline.md) for the downstream pipeline.

@@ -1,4 +1,4 @@
-.PHONY: install precompute schema genzod build dev test test-py test-site test-e2e clean deploy-local
+.PHONY: install fetch-race precompute schema genzod build dev test test-py test-site test-e2e clean deploy-local
 
 # -------- setup ------------------------------------------------------------
 
@@ -6,12 +6,19 @@ install:
 	cd precompute && uv sync --extra dev
 	cd site && npm ci
 
+# -------- data fetch (CI + fresh clones) -----------------------------------
+
+# Pulls just the four metadata files the precompute pipeline needs, for the
+# currently-featured race. Idempotent: skips files already present on disk.
+fetch-race:
+	cd seasons && uv run python fetch_race.py
+
 # -------- precompute -------------------------------------------------------
 
 schema:
 	cd precompute && uv run python -m f1.schema
 
-precompute: schema
+precompute: fetch-race schema
 	cd precompute && uv run python -m f1.build
 
 # -------- site -------------------------------------------------------------

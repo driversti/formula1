@@ -23,7 +23,7 @@ A local mirror of [`livetiming.formula1.com/static/`](https://livetiming.formula
 - **`download_f1.py`** — full-archive downloader. Reads each season's `Index.json`, enumerates meetings and sessions, and fetches the full set of per-session files (timing, positions, driver list, tyre stints, etc.). Idempotent: files present on disk are skipped.
 - **`verify_f1.py`** — per-file verification pass. Walks every cached session, confirms each expected file, retries missing ones, and writes `coverage.json`.
 
-Only the small metadata files needed by the pipeline for the currently-featured race are committed; everything else is regenerable.
+Nothing under `seasons/20xx/` is checked into git. CI and fresh clones invoke `seasons/fetch_race.py` (via `make fetch-race`) to pull the minimum metadata needed for the currently-featured race directly from F1's archive — a few MB, idempotent.
 
 ### `precompute/`
 

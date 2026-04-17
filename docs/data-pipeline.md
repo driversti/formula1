@@ -25,7 +25,7 @@ uv run python download_f1.py 2024 2025    # or: python download_f1.py (all seaso
 - Files already on disk are skipped, so the script is safely resumable.
 - A few 2018/2024 meetings are missing from `Index.json` but exist on disk; these are listed in `SUPPLEMENTAL_MEETINGS`.
 
-After a full run you'll have tens of gigabytes of raw archive under `seasons/<year>/`. All of it is gitignored — only the currently-featured race is committed.
+After a full run you'll have tens of gigabytes of raw archive under `seasons/<year>/`. **Nothing under `seasons/20xx/` is checked into git.** CI and fresh clones call `seasons/fetch_race.py` (via `make fetch-race`) to pull just the four files per session the precompute pipeline needs for the currently-featured race — a few MB total.
 
 ## Step 2 — Verify (`seasons/verify_f1.py`)
 
