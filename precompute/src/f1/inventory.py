@@ -86,3 +86,74 @@ def _sort_key(value: object) -> tuple[int, str]:
         return (0, f"{int(s):08d}")
     except ValueError:
         return (1, s)
+
+
+_COMPOUND_SHORT: dict[Compound, str] = {
+    "SOFT": "SOFT",
+    "MEDIUM": "MED",
+    "HARD": "HARD",
+    "INTERMEDIATE": "INT",
+    "WET": "WET",
+}
+
+
+def _next_set_id(driver_tla: str, compound: Compound, sets: list[TyreSet]) -> str:
+    count = sum(1 for s in sets if s.compound == compound) + 1
+    return f"{driver_tla}-{_COMPOUND_SHORT[compound]}-{count}"
+
+
+def _find_match(sets: list[TyreSet], compound: Compound, target_laps: int) -> TyreSet | None:
+    for s in sets:
+        if s.compound == compound and s.laps == target_laps:
+            return s
+    return None
+
+
+def build_inventory(
+    driver_number: str,
+    driver_tla: str,
+    stints_by_session: dict[SessionKey, list[SessionStint]],
+) -> list[TyreSet]:
+    """Two-pass algorithm: fully track FP1-Q, then discover saved-for-race in R.
+
+    The resulting ``TyreSet.laps`` always holds the pre-race state.
+    """
+    sets: list[TyreSet] = []
+
+    # Pass A: FP1 -> FP2 -> FP3 -> Q, full tracking.
+    for session in ("FP1", "FP2", "FP3", "Q"):
+        session_key: SessionKey = session  # type: ignore[assignment]
+        for stint in stints_by_session.get(session_key, []):
+            if stint.driver_number != driver_number:
+                continue
+            if stint.new_when_out:
+                sets.append(
+                    TyreSet(
+                        set_id=_next_set_id(driver_tla, stint.compound, sets),
+                        compound=stint.compound,
+                        laps=stint.end_laps,
+                        new_at_first_use=True,
+                        first_seen_session=session_key,
+                        last_seen_session=session_key,
+                    )
+                )
+                continue
+
+            match = _find_match(sets, stint.compound, stint.start_laps)
+            if match is not None:
+                match.laps = stint.end_laps
+                match.last_seen_session = session_key
+            else:
+                # Used stint with no prior match — best-effort inclusion.
+                sets.append(
+                    TyreSet(
+                        set_id=_next_set_id(driver_tla, stint.compound, sets),
+                        compound=stint.compound,
+                        laps=stint.end_laps,
+                        new_at_first_use=False,
+                        first_seen_session=session_key,
+                        last_seen_session=session_key,
+                    )
+                )
+
+    return sets

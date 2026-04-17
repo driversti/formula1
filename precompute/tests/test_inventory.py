@@ -77,3 +77,76 @@ def test_extract_session_stints_ignores_unknown_compound() -> None:
     }
     stints = extract_session_stints("FP1", state)
     assert [s.compound for s in stints] == ["SOFT"]
+
+
+# --- Pass A tests -----------------------------------------------------------
+
+def test_pass_a_creates_new_set_on_new_true() -> None:
+    from f1.inventory import build_inventory
+
+    stints = {
+        "FP1": [SessionStint("FP1", "1", 0, "SOFT", True, 0, 8)],
+    }
+    sets = build_inventory(driver_number="1", driver_tla="VER", stints_by_session=stints)
+    assert len(sets) == 1
+    s = sets[0]
+    assert s.set_id == "VER-SOFT-1"
+    assert s.compound == "SOFT"
+    assert s.laps == 8
+    assert s.new_at_first_use is True
+    assert s.first_seen_session == "FP1"
+    assert s.last_seen_session == "FP1"
+
+
+def test_pass_a_matches_continuing_set_by_compound_and_laps() -> None:
+    from f1.inventory import build_inventory
+
+    stints = {
+        "FP1": [SessionStint("FP1", "1", 0, "SOFT", True, 0, 8)],
+        "FP2": [SessionStint("FP2", "1", 0, "SOFT", False, 8, 2)],
+    }
+    sets = build_inventory(driver_number="1", driver_tla="VER", stints_by_session=stints)
+    assert len(sets) == 1
+    s = sets[0]
+    assert s.laps == 10
+    assert s.first_seen_session == "FP1"
+    assert s.last_seen_session == "FP2"
+
+
+def test_pass_a_two_separate_same_compound_sets_get_distinct_ids() -> None:
+    from f1.inventory import build_inventory
+
+    stints = {
+        "Q": [
+            SessionStint("Q", "1", 0, "SOFT", True, 0, 3),
+            SessionStint("Q", "1", 1, "SOFT", True, 0, 2),
+            SessionStint("Q", "1", 2, "SOFT", True, 0, 3),
+        ],
+    }
+    sets = build_inventory(driver_number="1", driver_tla="VER", stints_by_session=stints)
+    assert [s.set_id for s in sets] == ["VER-SOFT-1", "VER-SOFT-2", "VER-SOFT-3"]
+    assert [s.laps for s in sets] == [3, 2, 3]
+
+
+def test_pass_a_unmatched_used_stint_creates_set_with_start_laps() -> None:
+    from f1.inventory import build_inventory
+
+    # Used stint with no earlier history — treat as best-effort new set.
+    stints = {
+        "FP2": [SessionStint("FP2", "1", 0, "HARD", False, 4, 3)],
+    }
+    sets = build_inventory(driver_number="1", driver_tla="VER", stints_by_session=stints)
+    assert len(sets) == 1
+    assert sets[0].laps == 7
+    assert sets[0].new_at_first_use is False
+
+
+def test_pass_a_skips_sessions_with_no_stints_for_driver() -> None:
+    from f1.inventory import build_inventory
+
+    stints = {
+        "FP1": [SessionStint("FP1", "1", 0, "SOFT", True, 0, 8)],
+        # no FP2, FP3, Q for this driver
+    }
+    sets = build_inventory(driver_number="1", driver_tla="VER", stints_by_session=stints)
+    assert len(sets) == 1
