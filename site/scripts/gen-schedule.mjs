@@ -33,14 +33,21 @@ const CHAMPIONS = {
   2026: { drivers: null,                constructors: null },
 };
 
-function slugify(meeting, year) {
-  const loc = meeting.Location ?? meeting.Name;
-  return `${loc
+function clean(s) {
+  return s
     .toLowerCase()
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
     .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-|-$/g, "")}-${year}`;
+    .replace(/^-|-$/g, "");
+}
+
+// Single-country year → country-based slug (australia-2026, japan-2025).
+// Multiple GPs in a country that year → location-based (imola-2025, miami-2025).
+function slugify(meeting, year, countryCounts) {
+  const country = meeting.Country?.Name ?? "";
+  const root = country && countryCounts[country] === 1 ? country : (meeting.Location ?? meeting.Name);
+  return `${clean(root)}-${year}`;
 }
 
 function isTesting(meeting) {
@@ -55,16 +62,22 @@ function buildSeason(year) {
   const raw = readFileSync(indexPath, "utf8").replace(/^\uFEFF/, "");
   const data = JSON.parse(raw);
 
+  const meetings = (data.Meetings ?? []).filter((m) => !isTesting(m));
+  const countryCounts = {};
+  for (const m of meetings) {
+    const c = m.Country?.Name ?? "";
+    countryCounts[c] = (countryCounts[c] ?? 0) + 1;
+  }
+
   const races = [];
   let round = 0;
-  for (const m of data.Meetings ?? []) {
-    if (isTesting(m)) continue;
+  for (const m of meetings) {
     round += 1;
     const sessions = m.Sessions ?? [];
     const startDate = (sessions[0]?.StartDate ?? "").slice(0, 10);
     const endDate = (sessions[sessions.length - 1]?.StartDate ?? "").slice(0, 10);
     races.push({
-      slug: slugify(m, year),
+      slug: slugify(m, year, countryCounts),
       round,
       name: m.Name,
       countryCode: m.Country?.Code ?? "",
@@ -114,4 +127,4 @@ export type Season = {
 const body = `export const SCHEDULE: Season[] = ${JSON.stringify(seasons, null, 2)};\n`;
 
 writeFileSync(OUT, header + types + body);
-console.log(\`Wrote \${OUT} (\${seasons.length} seasons, \${seasons.reduce((n, s) => n + s.raceCount, 0)} races)\`);
+console.log(`Wrote ${OUT} (${seasons.length} seasons, ${seasons.reduce((n, s) => n + s.raceCount, 0)} races)`);
