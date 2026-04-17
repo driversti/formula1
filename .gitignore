@@ -34,11 +34,8 @@ site/public/data/
 # Superpowers brainstorm workspace
 .superpowers/
 
-# Claude Code / Superpowers workspace (user-local)
-.claude/
-.agents/
-skills-lock.json
-coverage.json
+# Stray coverage artefact at repo root (not the one in precompute/)
+/coverage.json
 
 # Logs
 *.log
