@@ -196,8 +196,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--data-root",
         type=Path,
-        default=Path(__file__).resolve().parents[3],
-        help="Root directory containing year folders (defaults to repo root)",
+        default=Path(__file__).resolve().parents[3] / "seasons",
+        help="Root directory containing year folders (defaults to repo_root/seasons)",
     )
     parser.add_argument(
         "--race-dir",

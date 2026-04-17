@@ -1,29 +1,29 @@
 # macOS
 .DS_Store
 
-# F1 raw live-timing archive (reproducible via download_f1.py — do not commit)
-/2018/
-/2019/
-/2020/
-/2021/
-/2023/
-/2024/
-/2025/
-/2026/
+# F1 raw live-timing archive (reproducible via seasons/download_f1.py — do not commit)
+/seasons/2018/
+/seasons/2019/
+/seasons/2020/
+/seasons/2021/
+/seasons/2023/
+/seasons/2024/
+/seasons/2025/
+/seasons/2026/
 
 # Exception: the specific Australia 2026 files required by `make build` in CI.
 # (Don't commit heavy telemetry like CarData.z / Position.z; only the small
 # metadata + tyre + timing files the precompute pipeline reads.)
-!/2026/
-/2026/*
-!/2026/2026-03-08_Australian_Grand_Prix/
-/2026/2026-03-08_Australian_Grand_Prix/*
-!/2026/2026-03-08_Australian_Grand_Prix/*/
-/2026/2026-03-08_Australian_Grand_Prix/*/*
-!/2026/2026-03-08_Australian_Grand_Prix/*/SessionInfo.json
-!/2026/2026-03-08_Australian_Grand_Prix/*/DriverList.jsonStream
-!/2026/2026-03-08_Australian_Grand_Prix/*/TyreStintSeries.jsonStream
-!/2026/2026-03-08_Australian_Grand_Prix/*/TimingAppData.jsonStream
+!/seasons/2026/
+/seasons/2026/*
+!/seasons/2026/2026-03-08_Australian_Grand_Prix/
+/seasons/2026/2026-03-08_Australian_Grand_Prix/*
+!/seasons/2026/2026-03-08_Australian_Grand_Prix/*/
+/seasons/2026/2026-03-08_Australian_Grand_Prix/*/*
+!/seasons/2026/2026-03-08_Australian_Grand_Prix/*/SessionInfo.json
+!/seasons/2026/2026-03-08_Australian_Grand_Prix/*/DriverList.jsonStream
+!/seasons/2026/2026-03-08_Australian_Grand_Prix/*/TyreStintSeries.jsonStream
+!/seasons/2026/2026-03-08_Australian_Grand_Prix/*/TimingAppData.jsonStream
 
 # Python
 __pycache__/
