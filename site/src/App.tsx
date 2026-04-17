@@ -1,18 +1,20 @@
 import { createBrowserRouter, RouterProvider } from "react-router-dom";
-import Home from "./routes/Home";
+import Seasons from "./routes/Seasons";
+import Season from "./routes/Season";
+import Race from "./routes/Race";
+import Tyres from "./routes/Tyres";
 import Driver from "./routes/Driver";
 import NotFound from "./routes/NotFound";
 
-// When deployed at a subpath (e.g. /formula1/ on GitHub Pages) the router
-// must strip that prefix before matching — otherwise every URL falls through
-// to <NotFound />. import.meta.env.BASE_URL is provided by Vite.
-// basename must not have a trailing slash.
 const basename = import.meta.env.BASE_URL.replace(/\/$/, "");
 
 const router = createBrowserRouter(
   [
-    { path: "/", element: <Home /> },
-    { path: "/driver/:tla", element: <Driver />, errorElement: <NotFound /> },
+    { path: "/", element: <Seasons /> },
+    { path: "/season/:year", element: <Season />, errorElement: <NotFound /> },
+    { path: "/race/:slug", element: <Race />, errorElement: <NotFound /> },
+    { path: "/race/:slug/tyres", element: <Tyres />, errorElement: <NotFound /> },
+    { path: "/race/:slug/driver/:tla", element: <Driver />, errorElement: <NotFound /> },
     { path: "*", element: <NotFound /> },
   ],
   { basename: basename || "/" },

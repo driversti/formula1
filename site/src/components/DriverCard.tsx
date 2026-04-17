@@ -20,10 +20,10 @@ type Driver = {
   sets: readonly Set[];
 };
 
-export function DriverCard({ driver }: { driver: Driver }) {
+export function DriverCard({ driver, raceSlug }: { driver: Driver; raceSlug: string }) {
   return (
     <Link
-      to={`/driver/${driver.tla}`}
+      to={`/race/${raceSlug}/driver/${driver.tla}`}
       style={{ borderLeftColor: driver.team_color }}
       className="block rounded-md border-l-4 border-transparent bg-f1-panel p-3 transition hover:bg-f1-border focus-visible:outline-2 focus-visible:outline-compound-medium"
     >

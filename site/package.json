@@ -13,7 +13,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
-    "gen:zod": "node scripts/gen-zod.mjs"
+    "gen:zod": "node scripts/gen-zod.mjs",
+    "gen:schedule": "node scripts/gen-schedule.mjs"
   },
   "dependencies": {
     "@visx/axis": "^3.12.0",

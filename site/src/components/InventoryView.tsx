@@ -32,7 +32,7 @@ export function InventoryView({ driver }: { driver: Driver }) {
   for (const s of driver.sets) grouped[s.compound].push(s);
 
   return (
-    <section className="grid grid-cols-1 gap-4 md:grid-cols-2">
+    <section className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
       {COMPOUND_ORDER.filter((c) => grouped[c].length > 0).map((c) => (
         <div key={c}>
           <h3 className="mb-2 text-xs font-mono uppercase tracking-widest text-f1-muted">{c}</h3>
