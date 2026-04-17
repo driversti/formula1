@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { DriverHeader } from "../components/DriverHeader";
+import { InventoryView } from "../components/InventoryView";
 import { RaceHeader } from "../components/RaceHeader";
 import { loadManifest } from "../lib/data";
 import type { Manifest } from "../lib/schemas";
@@ -39,7 +40,7 @@ export default function Driver() {
     <main className="mx-auto max-w-6xl p-6">
       <RaceHeader race={manifest.race} />
       <DriverHeader driver={driver} />
-      {/* InventoryView comes in Task C5 */}
+      <InventoryView driver={driver} />
     </main>
   );
 }
