@@ -1,4 +1,5 @@
 import { createBrowserRouter, RouterProvider } from "react-router-dom";
+import { AppShell } from "./components/AppShell";
 import Seasons from "./routes/Seasons";
 import Season from "./routes/Season";
 import Race from "./routes/Race";
@@ -10,12 +11,17 @@ const basename = import.meta.env.BASE_URL.replace(/\/$/, "");
 
 const router = createBrowserRouter(
   [
-    { path: "/", element: <Seasons /> },
-    { path: "/season/:year", element: <Season />, errorElement: <NotFound /> },
-    { path: "/race/:slug", element: <Race />, errorElement: <NotFound /> },
-    { path: "/race/:slug/tyres", element: <Tyres />, errorElement: <NotFound /> },
-    { path: "/race/:slug/driver/:tla", element: <Driver />, errorElement: <NotFound /> },
-    { path: "*", element: <NotFound /> },
+    {
+      element: <AppShell />,
+      children: [
+        { path: "/", element: <Seasons /> },
+        { path: "/season/:year", element: <Season />, errorElement: <NotFound /> },
+        { path: "/race/:slug", element: <Race />, errorElement: <NotFound /> },
+        { path: "/race/:slug/tyres", element: <Tyres />, errorElement: <NotFound /> },
+        { path: "/race/:slug/driver/:tla", element: <Driver />, errorElement: <NotFound /> },
+        { path: "*", element: <NotFound /> },
+      ],
+    },
   ],
   { basename: basename || "/" },
 );
