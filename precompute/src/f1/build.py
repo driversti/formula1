@@ -24,21 +24,26 @@ from f1.models import (
 from f1.parse import parse_stream
 from f1.reduce import reduce_events
 
-# Folder-name fragment -> SessionKey used internally
+# Most-specific first: "Sprint_Qualifying" MUST be checked before both
+# "Sprint" and "Qualifying" to avoid a substring collision.
 _SESSION_FOLDER_HINTS: list[tuple[str, SessionKey]] = [
-    ("Practice_1", "FP1"),
-    ("Practice_2", "FP2"),
-    ("Practice_3", "FP3"),
-    ("Qualifying", "Q"),
-    ("Race", "R"),
+    ("Practice_1",        "FP1"),
+    ("Practice_2",        "FP2"),
+    ("Practice_3",        "FP3"),
+    ("Sprint_Qualifying", "SQ"),
+    ("Sprint",            "S"),
+    ("Qualifying",        "Q"),
+    ("Race",              "R"),
 ]
 
 _SESSION_DISPLAY_NAME: dict[SessionKey, str] = {
     "FP1": "Practice 1",
     "FP2": "Practice 2",
     "FP3": "Practice 3",
-    "Q": "Qualifying",
-    "R": "Race",
+    "SQ":  "Sprint Qualifying",
+    "S":   "Sprint",
+    "Q":   "Qualifying",
+    "R":   "Race",
 }
 
 
@@ -133,6 +138,12 @@ def build_race_manifest(
         )
         if key == "R":
             race_info = info
+
+    # Folder names don't always sort chronologically on sprint weekends
+    # (e.g. 2026-03-14_Qualifying sorts before 2026-03-14_Sprint even
+    # though Sprint runs first). Re-order by StartDate so the manifest's
+    # session list matches what actually happened on track.
+    session_refs.sort(key=lambda ref: ref.start_utc)
 
     meeting = race_info.get("Meeting") if isinstance(race_info.get("Meeting"), dict) else {}
     if isinstance(meeting, dict):

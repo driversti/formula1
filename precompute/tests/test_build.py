@@ -100,3 +100,88 @@ def test_build_race_manifest_json_round_trip(mini_race_root: Path, tmp_path: Pat
     assert loaded["race"]["slug"] == "australia-2026"
     # Re-validate through Pydantic.
     Manifest.model_validate(loaded)
+
+
+def test_build_race_manifest_for_sprint_weekend_produces_validated_model(
+    mini_race_root: Path,
+) -> None:
+    manifest = build_race_manifest(
+        data_root=mini_race_root,
+        race_dir="2026/2026-03-15_Chinese_Grand_Prix",
+        season=2026,
+        round_number=2,
+        slug="china-2026",
+    )
+    assert isinstance(manifest, Manifest)
+    assert manifest.race.slug == "china-2026"
+    assert manifest.race.name == "Chinese Grand Prix"
+    assert manifest.race.location == "Shanghai"
+    assert manifest.race.country == "China"
+    assert manifest.race.season == 2026
+    assert manifest.race.round == 2
+
+
+def test_build_race_manifest_discovers_all_five_session_keys(
+    mini_race_root: Path,
+) -> None:
+    manifest = build_race_manifest(
+        data_root=mini_race_root,
+        race_dir="2026/2026-03-15_Chinese_Grand_Prix",
+        season=2026,
+        round_number=2,
+        slug="china-2026",
+    )
+    assert [s.key for s in manifest.race.sessions] == ["FP1", "SQ", "S", "Q", "R"]
+
+
+def test_build_race_manifest_sprint_session_stints_participate_in_pass_a(
+    mini_race_root: Path,
+) -> None:
+    manifest = build_race_manifest(
+        data_root=mini_race_root,
+        race_dir="2026/2026-03-15_Chinese_Grand_Prix",
+        season=2026,
+        round_number=2,
+        slug="china-2026",
+    )
+    ver = next(d for d in manifest.race.drivers if d.tla == "VER")
+    soft = next(s for s in ver.sets if s.compound == "SOFT")
+    assert soft.first_seen_session == "SQ"
+    assert soft.last_seen_session == "Q"
+    assert soft.laps == 5  # 3 from SQ + 2 from Q
+
+
+def test_build_race_manifest_sprint_session_does_not_falsely_discover_in_pass_b(
+    mini_race_root: Path,
+) -> None:
+    manifest = build_race_manifest(
+        data_root=mini_race_root,
+        race_dir="2026/2026-03-15_Chinese_Grand_Prix",
+        season=2026,
+        round_number=2,
+        slug="china-2026",
+    )
+    ver = next(d for d in manifest.race.drivers if d.tla == "VER")
+    hard_sets = [s for s in ver.sets if s.compound == "HARD"]
+    assert len(hard_sets) == 1
+    assert hard_sets[0].first_seen_session == "S"
+    # The MEDIUM saved for the race:
+    medium_sets = [s for s in ver.sets if s.compound == "MEDIUM"]
+    assert len(medium_sets) == 1
+    assert medium_sets[0].first_seen_session == "R"
+    assert medium_sets[0].laps == 0
+
+
+def test_build_race_manifest_attaches_sprint_grid_positions(
+    mini_race_root: Path,
+) -> None:
+    manifest = build_race_manifest(
+        data_root=mini_race_root,
+        race_dir="2026/2026-03-15_Chinese_Grand_Prix",
+        season=2026,
+        round_number=2,
+        slug="china-2026",
+    )
+    by_tla = {d.tla: d for d in manifest.race.drivers}
+    assert by_tla["VER"].grid_position == 1
+    assert by_tla["LEC"].grid_position == 2
