@@ -5,6 +5,7 @@ import Season from "./routes/Season";
 import Race from "./routes/Race";
 import Tyres from "./routes/Tyres";
 import Driver from "./routes/Driver";
+import Legal from "./routes/Legal";
 import NotFound from "./routes/NotFound";
 
 const basename = import.meta.env.BASE_URL.replace(/\/$/, "");
@@ -19,6 +20,7 @@ const router = createBrowserRouter(
         { path: "/race/:slug", element: <Race />, errorElement: <NotFound /> },
         { path: "/race/:slug/tyres", element: <Tyres />, errorElement: <NotFound /> },
         { path: "/race/:slug/driver/:tla", element: <Driver />, errorElement: <NotFound /> },
+        { path: "/legal", element: <Legal /> },
         { path: "*", element: <NotFound /> },
       ],
     },
