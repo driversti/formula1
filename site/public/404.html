@@ -4,11 +4,16 @@
     <meta charset="utf-8" />
     <title>Redirecting…</title>
     <script>
-      // Preserve the requested path and redirect to the SPA at /?redirect=PATH,
-      // which main.tsx (below) consumes on first render.
+      // Preserve the requested path and redirect to the SPA at <base>?redirect=PATH,
+      // which main.tsx consumes on first render.
       (function () {
-        var path = window.location.pathname + window.location.search + window.location.hash;
-        var base = "/";
+        // Derive the repo subpath (e.g. "/formula1/") by taking the first
+        // segment on *.github.io; falls back to "/" elsewhere.
+        var host = window.location.hostname;
+        var parts = window.location.pathname.split("/").filter(Boolean);
+        var base = host.endsWith("github.io") && parts.length > 0 ? "/" + parts[0] + "/" : "/";
+        var remainder = window.location.pathname.slice(base.length);
+        var path = "/" + remainder + window.location.search + window.location.hash;
         window.location.replace(base + "?redirect=" + encodeURIComponent(path));
       })();
     </script>

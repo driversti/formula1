@@ -9,7 +9,7 @@ export default function Home() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    loadManifest("/data/australia-2026.json")
+    loadManifest(`${import.meta.env.BASE_URL}data/australia-2026.json`)
       .then(setManifest)
       .catch((e: unknown) => setError(e instanceof Error ? e.message : String(e)));
   }, []);
