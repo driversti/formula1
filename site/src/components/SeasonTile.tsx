@@ -7,6 +7,7 @@ export function SeasonTile({ season }: { season: Season }) {
   return (
     <Link
       to={`/season/${season.year}`}
+      aria-label={String(season.year)}
       className="block rounded-md border border-f1-border bg-f1-panel p-4 transition hover:bg-f1-border focus-visible:outline-2 focus-visible:outline-compound-medium"
     >
       <div className="flex items-baseline justify-between">
