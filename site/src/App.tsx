@@ -1,8 +1,14 @@
+import { createBrowserRouter, RouterProvider } from "react-router-dom";
+import Home from "./routes/Home";
+import Driver from "./routes/Driver";
+import NotFound from "./routes/NotFound";
+
+const router = createBrowserRouter([
+  { path: "/", element: <Home /> },
+  { path: "/driver/:tla", element: <Driver />, errorElement: <NotFound /> },
+  { path: "*", element: <NotFound /> },
+]);
+
 export default function App() {
-  return (
-    <main className="mx-auto max-w-6xl p-6">
-      <h1 className="text-2xl font-bold">F1 Tyre Inventory — scaffolding</h1>
-      <p className="text-f1-muted mt-2">Site scaffolded. Routes and data come next.</p>
-    </main>
-  );
+  return <RouterProvider router={router} />;
 }
