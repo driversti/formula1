@@ -47,7 +47,9 @@ describe("<Breadcrumbs />", () => {
 
   it("includes separators marked aria-hidden between items", () => {
     renderAt("/season/2026");
-    const separators = document.querySelectorAll('[aria-hidden="true"]');
+    const nav = screen.getByRole("navigation", { name: "Breadcrumb" });
+    const separators = within(nav).getAllByText("›");
+    expect(separators.every((el) => el.getAttribute("aria-hidden") === "true")).toBe(true);
     expect(separators.length).toBeGreaterThanOrEqual(1);
   });
 });
