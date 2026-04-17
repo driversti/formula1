@@ -150,3 +150,87 @@ def test_pass_a_skips_sessions_with_no_stints_for_driver() -> None:
     }
     sets = build_inventory(driver_number="1", driver_tla="VER", stints_by_session=stints)
     assert len(sets) == 1
+
+
+# --- Pass B tests -----------------------------------------------------------
+
+def test_pass_b_discovers_saved_for_race_set() -> None:
+    from f1.inventory import build_inventory
+
+    # MED-2 first appears in the Race session as a new set -> saved for race.
+    stints = {
+        "FP1": [SessionStint("FP1", "1", 0, "MEDIUM", True, 0, 5)],
+        "R": [SessionStint("R", "1", 0, "MEDIUM", True, 0, 25)],
+    }
+    sets = build_inventory(driver_number="1", driver_tla="VER", stints_by_session=stints)
+    assert len(sets) == 2
+    saved = [s for s in sets if s.first_seen_session == "R"]
+    assert len(saved) == 1
+    assert saved[0].laps == 0  # pre-race state
+    assert saved[0].new_at_first_use is True
+
+
+def test_pass_b_does_not_mutate_existing_set_laps() -> None:
+    from f1.inventory import build_inventory
+
+    # HARD-1 seen in FP2 at 12 laps; race uses it from lap 12 -> 45 laps.
+    # Pre-race laps must remain 12.
+    stints = {
+        "FP2": [SessionStint("FP2", "1", 0, "HARD", True, 0, 12)],
+        "R": [SessionStint("R", "1", 0, "HARD", False, 12, 33)],
+    }
+    sets = build_inventory(driver_number="1", driver_tla="VER", stints_by_session=stints)
+    assert len(sets) == 1
+    assert sets[0].laps == 12
+    assert sets[0].last_seen_session == "FP2"
+
+
+def test_pass_b_used_set_first_seen_in_race_is_created_with_start_laps() -> None:
+    from f1.inventory import build_inventory
+
+    # Used HARD first appears in Race — something we missed earlier.
+    # Include at pre-race state start_laps=8.
+    stints = {
+        "R": [SessionStint("R", "1", 0, "HARD", False, 8, 25)],
+    }
+    sets = build_inventory(driver_number="1", driver_tla="VER", stints_by_session=stints)
+    assert len(sets) == 1
+    assert sets[0].laps == 8
+    assert sets[0].first_seen_session == "R"
+
+
+def test_full_weekend_example_verstappen() -> None:
+    from f1.inventory import build_inventory
+
+    stints = {
+        "FP1": [
+            SessionStint("FP1", "1", 0, "SOFT", True, 0, 8),
+            SessionStint("FP1", "1", 1, "MEDIUM", True, 0, 5),
+        ],
+        "FP2": [
+            SessionStint("FP2", "1", 0, "SOFT", False, 8, 2),
+            SessionStint("FP2", "1", 1, "HARD", True, 0, 12),
+        ],
+        "FP3": [
+            SessionStint("FP3", "1", 0, "MEDIUM", False, 5, 3),
+        ],
+        "Q": [
+            SessionStint("Q", "1", 0, "SOFT", True, 0, 3),
+            SessionStint("Q", "1", 1, "SOFT", True, 0, 2),
+            SessionStint("Q", "1", 2, "SOFT", True, 0, 3),
+        ],
+        "R": [
+            SessionStint("R", "1", 0, "MEDIUM", True, 0, 25),
+            SessionStint("R", "1", 1, "HARD", False, 12, 33),
+        ],
+    }
+    sets = build_inventory(driver_number="1", driver_tla="VER", stints_by_session=stints)
+    by_id = {s.set_id: s for s in sets}
+    assert by_id["VER-HARD-1"].laps == 12
+    assert by_id["VER-MED-1"].laps == 8
+    assert by_id["VER-MED-2"].laps == 0
+    assert by_id["VER-MED-2"].first_seen_session == "R"
+    assert by_id["VER-SOFT-1"].laps == 10
+    assert by_id["VER-SOFT-2"].laps == 3
+    assert by_id["VER-SOFT-3"].laps == 2
+    assert by_id["VER-SOFT-4"].laps == 3

@@ -156,4 +156,37 @@ def build_inventory(
                     )
                 )
 
+    # Pass B: Race, discovery only — never mutate existing sets.
+    for stint in stints_by_session.get("R", []):
+        if stint.driver_number != driver_number:
+            continue
+        match = _find_match(sets, stint.compound, stint.start_laps)
+        if match is not None:
+            # Pre-race state preserved — do nothing.
+            continue
+        if stint.new_when_out:
+            # Driver saved this set for the race.
+            sets.append(
+                TyreSet(
+                    set_id=_next_set_id(driver_tla, stint.compound, sets),
+                    compound=stint.compound,
+                    laps=0,
+                    new_at_first_use=True,
+                    first_seen_session="R",
+                    last_seen_session="R",
+                )
+            )
+        else:
+            # Used set never seen before — include with its start_laps.
+            sets.append(
+                TyreSet(
+                    set_id=_next_set_id(driver_tla, stint.compound, sets),
+                    compound=stint.compound,
+                    laps=stint.start_laps,
+                    new_at_first_use=False,
+                    first_seen_session="R",
+                    last_seen_session="R",
+                )
+            )
+
     return sets
