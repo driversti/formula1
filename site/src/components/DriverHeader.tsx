@@ -9,6 +9,12 @@ type Driver = {
   grid_position: number | null;
 };
 
+function toTitleCase(name: string): string {
+  return name
+    .toLowerCase()
+    .replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
 export function DriverHeader({ driver }: { driver: Driver }) {
   return (
     <section
@@ -17,7 +23,7 @@ export function DriverHeader({ driver }: { driver: Driver }) {
     >
       <div>
         <p className="text-xs uppercase tracking-widest text-f1-muted">#{driver.racing_number}</p>
-        <h2 className="text-2xl font-bold">{driver.full_name}</h2>
+        <h2 className="text-2xl font-bold">{toTitleCase(driver.full_name)}</h2>
         <p className="text-sm text-f1-muted">{driver.team_name}</p>
       </div>
       <div className="text-right">
