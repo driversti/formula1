@@ -105,10 +105,11 @@ def build_race_manifest(
         reduced = _reduce_stream(sess_dir, "TyreStintSeries.jsonStream")
         stints_by_session[key] = extract_session_stints(key, reduced)
 
-    # Grid positions from Qualifying TimingAppData if present.
+    # Grid positions from the Race session's TimingAppData (set right before
+    # race start). Qualifying's TimingAppData does not carry GridPos.
     grid_positions: dict[str, int] = {}
     for key, sess_dir in sessions:
-        if key == "Q":
+        if key == "R":
             ta = _reduce_stream(sess_dir, "TimingAppData.jsonStream")
             grid_positions = extract_grid_positions(ta)
             break
