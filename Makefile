@@ -37,7 +37,7 @@ test-py:
 test-site:
 	cd site && npm run test
 
-test-e2e:
+test-e2e: build
 	cd site && npm run test:e2e
 
 test: test-py test-site test-e2e
