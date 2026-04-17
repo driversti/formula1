@@ -20,7 +20,7 @@ describe("<DriverCard />", () => {
   it("shows the TLA, team name and grid position", () => {
     render(
       <MemoryRouter>
-        <DriverCard driver={driver} />
+        <DriverCard driver={driver} raceSlug="australia-2026" />
       </MemoryRouter>,
     );
     expect(screen.getByText("LEC")).toBeInTheDocument();
@@ -31,27 +31,27 @@ describe("<DriverCard />", () => {
   it("renders one TyreDot per set", () => {
     const { container } = render(
       <MemoryRouter>
-        <DriverCard driver={driver} />
+        <DriverCard driver={driver} raceSlug="australia-2026" />
       </MemoryRouter>,
     );
     const dots = container.querySelectorAll('[data-testid="tyre-dot"]');
     expect(dots.length).toBe(2);
   });
 
-  it("links to /driver/:tla", () => {
+  it("links to /race/:slug/driver/:tla", () => {
     render(
       <MemoryRouter>
-        <DriverCard driver={driver} />
+        <DriverCard driver={driver} raceSlug="australia-2026" />
       </MemoryRouter>,
     );
     const link = screen.getByRole("link");
-    expect(link).toHaveAttribute("href", "/driver/LEC");
+    expect(link).toHaveAttribute("href", "/race/australia-2026/driver/LEC");
   });
 
   it("uses the team_color as left border inline style", () => {
     render(
       <MemoryRouter>
-        <DriverCard driver={driver} />
+        <DriverCard driver={driver} raceSlug="australia-2026" />
       </MemoryRouter>,
     );
     const link = screen.getByRole("link");
