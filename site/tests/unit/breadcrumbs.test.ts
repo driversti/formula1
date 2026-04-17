@@ -95,4 +95,11 @@ describe("buildTrail", () => {
       { label: "Home", href: "/", current: true },
     ]);
   });
+
+  it("returns Home > Legal (current) for /legal", () => {
+    expect(buildTrail("/legal", SCHEDULE)).toEqual([
+      { label: "Home", href: "/", current: false },
+      { label: "Legal", href: "/legal", current: true },
+    ]);
+  });
 });

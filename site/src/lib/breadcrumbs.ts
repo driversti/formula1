@@ -62,6 +62,13 @@ export function buildTrail(pathname: string, schedule: Season[]): Crumb[] {
     return trail;
   }
 
+  if (pathname === "/legal" || pathname === "/legal/") {
+    return [
+      { label: "Home", href: "/", current: false },
+      { label: "Legal", href: "/legal", current: true },
+    ];
+  }
+
   return homeOnly();
 }
 
