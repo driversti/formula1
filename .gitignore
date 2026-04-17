@@ -11,6 +11,20 @@
 /2025/
 /2026/
 
+# Exception: the specific Australia 2026 files required by `make build` in CI.
+# (Don't commit heavy telemetry like CarData.z / Position.z; only the small
+# metadata + tyre + timing files the precompute pipeline reads.)
+!/2026/
+/2026/*
+!/2026/2026-03-08_Australian_Grand_Prix/
+/2026/2026-03-08_Australian_Grand_Prix/*
+!/2026/2026-03-08_Australian_Grand_Prix/*/
+/2026/2026-03-08_Australian_Grand_Prix/*/*
+!/2026/2026-03-08_Australian_Grand_Prix/*/SessionInfo.json
+!/2026/2026-03-08_Australian_Grand_Prix/*/DriverList.jsonStream
+!/2026/2026-03-08_Australian_Grand_Prix/*/TyreStintSeries.jsonStream
+!/2026/2026-03-08_Australian_Grand_Prix/*/TimingAppData.jsonStream
+
 # Python
 __pycache__/
 *.pyc
