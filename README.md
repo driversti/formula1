@@ -1,6 +1,6 @@
-# F1 Tyre Inventory
+# Formula 1 Dashboard
 
-Pre-race visualisation of each driver's **available tyre sets** for an upcoming Formula 1 Grand Prix. The dashboard reads Formula 1's public live-timing archive, reconstructs per-set stint histories across the race weekend's practice and qualifying sessions, and shows — for each driver — which compounds are still fresh, which are scrubbed, and how many laps each set has already seen.
+A companion dashboard for Formula 1 race weekends, built on top of F1's public live-timing archive. The project ingests raw session data, reconstructs what happened on track, and presents it as focused, interactive views for fans who want more than the broadcast shows.
 
 🏁 **Live site:** [driversti.github.io/formula1](https://driversti.github.io/formula1/)
 
@@ -8,11 +8,17 @@ Pre-race visualisation of each driver's **available tyre sets** for an upcoming 
 [![CI](https://github.com/driversti/formula1/actions/workflows/ci.yml/badge.svg)](https://github.com/driversti/formula1/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
 
+## Features
+
+- **Pre-race tyre inventory** — for an upcoming Grand Prix, shows each driver's available tyre sets reconstructed from practice and qualifying: which compounds are still fresh, which are scrubbed, and how many laps each set has already seen.
+
+More views are planned as the underlying data pipeline grows — stints, strategy, pace comparisons, and beyond.
+
 ## What this repo contains
 
 - **`seasons/`** — download scripts for F1's public live-timing archive (`livetiming.formula1.com/static/`). Nothing under `seasons/20xx/` is checked in; CI fetches the minimum it needs on every build via `make fetch-race`.
-- **`precompute/`** — a Python 3.13 pipeline (Pydantic + pytest) that parses the raw `.jsonStream` files and emits a single validated JSON manifest per race.
-- **`site/`** — a React 19 + TypeScript + Vite + Tailwind frontend that consumes the manifest and renders the dashboard. Charts use `@visx`. E2E tests with Playwright.
+- **`precompute/`** — a Python 3.13 pipeline (Pydantic + pytest) that parses raw `.jsonStream` files and emits validated JSON manifests consumed by the frontend.
+- **`site/`** — a React 19 + TypeScript + Vite + Tailwind frontend. Charts use `@visx`. E2E tests with Playwright.
 
 See [`docs/architecture.md`](./docs/architecture.md) for a deeper overview and [`docs/data-pipeline.md`](./docs/data-pipeline.md) for the data flow.
 
@@ -45,7 +51,7 @@ make test
 
 ```
 formula1/
-├── seasons/           # mirrored F1 live-timing archive + download scripts
+├── seasons/           # F1 live-timing archive download scripts
 │   ├── download_f1.py
 │   ├── verify_f1.py
 │   └── 2018…2026/
@@ -64,11 +70,11 @@ formula1/
 
 ## Contributing
 
-Issues and PRs are welcome! Before opening a PR:
+Issues and PRs are welcome! Ideas for new views, data sources, or visualisations are especially appreciated — this is meant to grow beyond its first feature. Before opening a PR:
 
 1. Run `make test` locally.
 2. Keep changes focused — smaller PRs are easier to review.
-3. The race manifest format is validated by Pydantic in `precompute/` and mirrored by Zod in `site/` — changes to one usually require the other.
+3. Manifest formats are validated by Pydantic in `precompute/` and mirrored by Zod in `site/` — changes to one usually require the other.
 
 See [`docs/development.md`](./docs/development.md) for local setup details.
 
