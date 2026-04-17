@@ -88,7 +88,7 @@ The existing routes become children of a layout route. Page components keep thei
 
 - **Bar:** `sticky top-0 z-20 bg-f1-panel border-b border-f1-border px-5 py-3` · flex row · `items-center justify-between`.
 - **Brand (left):** small red square (`bg-compound-soft`) + `F1 DASHBOARD` wordmark · `text-sm font-bold tracking-wide` · links to `/`.
-- **Crumbs (right):** `text-sm text-f1-muted`. Links: `text-f1-text hover:bg-white/5 rounded px-1.5 py-0.5`. Separator `›` in `text-f1-border`. Current: `text-f1-accent` with `aria-current="page"` (not a link).
+- **Crumbs (right):** `text-sm text-f1-muted`. Links: `text-f1-text hover:bg-white/5 rounded px-1.5 py-0.5`. Separator `›` in `text-f1-border`. Current: `text-compound-medium` (yellow accent already in theme) with `aria-current="page"` (not a link).
 - **Overflow:** breadcrumb container is `overflow-x-auto whitespace-nowrap`, scrollbar hidden (`::-webkit-scrollbar{display:none}`, `scrollbar-width:none`). Crumbs shrink-to-fit; the bar itself never wraps.
 - **In-page content:** route components keep `<main className="mx-auto max-w-6xl p-6">` unchanged. No top-padding tweaks required.
 
@@ -102,13 +102,13 @@ The existing routes become children of a layout route. Page components keep thei
 
 ## Testing
 
-- **Unit (vitest):** `site/src/lib/breadcrumbs.test.ts` — covers every pathname pattern above, including unknown slug, unknown year, and the NotFound fallback.
-- **Component (vitest + RTL):** `site/src/components/Breadcrumbs.test.tsx` — verifies current item has `aria-current="page"`, non-current items are links with expected `href`, and `aria-label="Breadcrumb"` is present.
+- **Unit (vitest):** `site/tests/unit/breadcrumbs.test.ts` — covers every pathname pattern above, including unknown slug, unknown year, and the NotFound fallback.
+- **Component (vitest + RTL):** `site/tests/unit/Breadcrumbs.test.tsx` — verifies current item has `aria-current="page"`, non-current items are links with expected `href`, and `aria-label="Breadcrumb"` is present.
 - **E2E (Playwright):** one spec walks `/` → 2026 season → a race → Tyres, then uses the header breadcrumbs to jump back to `2026` and to `Home`, asserting the URL at each hop. Covers the core user story.
 
 ## Files changed
 
-- **New:** `AppShell.tsx`, `SiteHeader.tsx`, `Breadcrumbs.tsx`, `lib/breadcrumbs.ts`, `lib/breadcrumbs.test.ts`, `components/Breadcrumbs.test.tsx`, one new Playwright spec.
+- **New:** `site/src/components/AppShell.tsx`, `site/src/components/SiteHeader.tsx`, `site/src/components/Breadcrumbs.tsx`, `site/src/lib/breadcrumbs.ts`, `site/tests/unit/breadcrumbs.test.ts`, `site/tests/unit/Breadcrumbs.test.tsx`, `site/tests/e2e/breadcrumbs.spec.ts`.
 - **Modified:** `site/src/App.tsx` (wrap existing routes in a layout route that renders `<AppShell>`).
 - **Untouched:** all existing route components, `schedule.ts`, data loading, Zod/Pydantic schemas, the precompute pipeline.
 
