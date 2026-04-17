@@ -29,10 +29,13 @@ jobs:
       - run: make install
       - run: make test-py
       - run: make test-site
-      - run: make build
       - name: Install Playwright browsers
         run: cd site && npx playwright install --with-deps chromium
+      # Run e2e first — it does a throwaway build with VITE_BASE=/ so the
+      # Playwright preview server can serve from the root.
       - run: make test-e2e
+      # Then do the real production build (base=/formula1/) that Pages uploads.
+      - run: make build
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:

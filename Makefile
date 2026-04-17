@@ -37,7 +37,11 @@ test-py:
 test-site:
 	cd site && npm run test
 
-test-e2e: build
+test-e2e: precompute genzod
+	# Playwright's webServer.command builds with VITE_BASE=/ so tests can
+	# hit page.goto("/") without a subpath. We only need data staged here.
+	mkdir -p site/public/data
+	cp precompute/out/australia-2026.json site/public/data/
 	cd site && npm run test:e2e
 
 test: test-py test-site test-e2e

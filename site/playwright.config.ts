@@ -13,7 +13,9 @@ export default defineConfig({
     { name: "chromium", use: { ...devices["Desktop Chrome"] } },
   ],
   webServer: {
-    command: "npm run build && npm run preview -- --port 4173 --strictPort",
+    // Tests use `page.goto("/")` etc., so the preview must serve from the
+    // root. Force VITE_BASE=/ for the build done by this webServer command.
+    command: "VITE_BASE=/ npm run build && npm run preview -- --port 4173 --strictPort",
     url: "http://localhost:4173",
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,
