@@ -16,8 +16,8 @@ type Set = {
 };
 
 const SESSIONS: ReadonlyArray<SessionKey> = ["FP1", "FP2", "FP3", "Q", "R"];
-const HEIGHT = 44;
-const MARGIN = { top: 4, right: 4, bottom: 18, left: 4 };
+const HEIGHT = 60;
+const MARGIN = { top: 4, right: 4, bottom: 26, left: 4 };
 
 function firstToLastIndex(set: Set): [number, number] {
   return [SESSIONS.indexOf(set.first_seen_session), SESSIONS.indexOf(set.last_seen_session)];
@@ -67,11 +67,12 @@ export function UsageBar({ set }: { set: Set }) {
               tickFormat={(s) => String(s)}
               stroke="transparent"
               tickStroke="transparent"
+              hideTicks
               tickLabelProps={() => ({
                 fill: "var(--color-f1-muted)",
-                fontSize: 10,
+                fontSize: 11,
                 textAnchor: "middle",
-                dy: "0.33em",
+                dy: "1em",
                 fontFamily: "var(--font-mono)",
               })}
             />
