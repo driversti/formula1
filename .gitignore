@@ -27,6 +27,19 @@ node_modules/
 dist/
 .vite/
 
+# TypeScript build artefacts (from `tsc -b`)
+*.tsbuildinfo
+site/vite.config.d.ts
+site/vite.config.js
+site/vitest.config.d.ts
+site/vitest.config.js
+site/playwright.config.d.ts
+site/playwright.config.js
+
+# Playwright
+site/test-results/
+site/playwright-report/
+
 # Project artifacts
 precompute/out/
 site/public/data/
