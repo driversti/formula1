@@ -1,0 +1,30 @@
+name: CI
+
+on:
+  pull_request:
+  # Allow contributors running tests on feature branches before opening a PR.
+  push:
+    branches-ignore: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - uses: astral-sh/setup-uv@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: make install
+      - run: make test-py
+      - run: make test-site
+      - name: Install Playwright browsers
+        run: cd site && npx playwright install --with-deps chromium
+      - run: make test-e2e
