@@ -7,11 +7,9 @@ describe("schedule catalog", () => {
     expect(years).toEqual([2018, 2019, 2020, 2021, 2023, 2024, 2025, 2026]);
   });
 
-  it("every season-race pair is unique (slug + year)", () => {
-    const pairs = SCHEDULE.flatMap((s) =>
-      s.races.map((r) => `${r.slug}::${r.round}`)
-    );
-    expect(new Set(pairs).size).toBe(pairs.length);
+  it("every race slug is globally unique", () => {
+    const slugs = SCHEDULE.flatMap((s) => s.races.map((r) => r.slug));
+    expect(new Set(slugs).size).toBe(slugs.length);
   });
 
   it("includes australia-2026 as a race", () => {

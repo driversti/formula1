@@ -451,7 +451,7 @@ export const SCHEDULE: Season[] = [
     "year": 2020,
     "races": [
       {
-        "slug": "spielberg-2020",
+        "slug": "austrian-2020",
         "round": 1,
         "name": "Austrian Grand Prix",
         "countryCode": "AUT",
@@ -461,7 +461,7 @@ export const SCHEDULE: Season[] = [
         "endDate": "2020-07-05"
       },
       {
-        "slug": "spielberg-2020",
+        "slug": "styrian-2020",
         "round": 2,
         "name": "Styrian Grand Prix",
         "countryCode": "AUT",
@@ -481,7 +481,7 @@ export const SCHEDULE: Season[] = [
         "endDate": "2020-07-19"
       },
       {
-        "slug": "silverstone-2020",
+        "slug": "british-2020",
         "round": 4,
         "name": "British Grand Prix",
         "countryCode": "GBR",
@@ -491,7 +491,7 @@ export const SCHEDULE: Season[] = [
         "endDate": "2020-08-02"
       },
       {
-        "slug": "silverstone-2020",
+        "slug": "70th-anniversary-2020",
         "round": 5,
         "name": "70th Anniversary Grand Prix",
         "countryCode": "GBR",
@@ -591,7 +591,7 @@ export const SCHEDULE: Season[] = [
         "endDate": "2020-11-15"
       },
       {
-        "slug": "sakhir-2020",
+        "slug": "bahrain-2020",
         "round": 15,
         "name": "Bahrain Grand Prix",
         "countryCode": "BRN",
@@ -699,7 +699,7 @@ export const SCHEDULE: Season[] = [
         "endDate": "2021-06-20"
       },
       {
-        "slug": "spielberg-2021",
+        "slug": "styrian-2021",
         "round": 8,
         "name": "Styrian Grand Prix",
         "countryCode": "AUT",
@@ -709,7 +709,7 @@ export const SCHEDULE: Season[] = [
         "endDate": "2021-06-27"
       },
       {
-        "slug": "spielberg-2021",
+        "slug": "austrian-2021",
         "round": 9,
         "name": "Austrian Grand Prix",
         "countryCode": "AUT",

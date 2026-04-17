@@ -42,12 +42,21 @@ function clean(s) {
     .replace(/^-|-$/g, "");
 }
 
-// Single-country year → country-based slug (australia-2026, japan-2025).
-// Multiple GPs in a country that year → location-based (imola-2025, miami-2025).
-function slugify(meeting, year, countryCounts) {
+// Preferred root: country name when a country hosts one GP that year,
+// otherwise location. Still collides for double-headers at the same circuit
+// (Spielberg 2020, Silverstone 2020, Sakhir 2020); callers disambiguate.
+function preferredRoot(meeting, countryCounts) {
   const country = meeting.Country?.Name ?? "";
-  const root = country && countryCounts[country] === 1 ? country : (meeting.Location ?? meeting.Name);
-  return `${clean(root)}-${year}`;
+  if (country && countryCounts[country] === 1) return country;
+  return meeting.Location ?? meeting.Name ?? "";
+}
+
+// Name-based fallback used when two meetings would collide on preferredRoot
+// — e.g. "Styrian Grand Prix" → styrian-2020, "70th Anniversary Grand Prix"
+// → 70th-anniversary-2020.
+function nameRoot(meeting) {
+  const n = (meeting.Name ?? "").replace(/grand prix/i, "").trim();
+  return n || meeting.Name || "";
 }
 
 function isTesting(meeting) {
@@ -69,15 +78,22 @@ function buildSeason(year) {
     countryCounts[c] = (countryCounts[c] ?? 0) + 1;
   }
 
+  // First pass: compute preferred slugs and detect collisions within the year.
+  const preferred = meetings.map((m) => clean(preferredRoot(m, countryCounts)));
+  const preferredCounts = {};
+  for (const p of preferred) preferredCounts[p] = (preferredCounts[p] ?? 0) + 1;
+
   const races = [];
   let round = 0;
-  for (const m of meetings) {
+  for (let i = 0; i < meetings.length; i += 1) {
+    const m = meetings[i];
     round += 1;
     const sessions = m.Sessions ?? [];
     const startDate = (sessions[0]?.StartDate ?? "").slice(0, 10);
     const endDate = (sessions[sessions.length - 1]?.StartDate ?? "").slice(0, 10);
+    const root = preferredCounts[preferred[i]] > 1 ? clean(nameRoot(m)) : preferred[i];
     races.push({
-      slug: slugify(m, year, countryCounts),
+      slug: `${root}-${year}`,
       round,
       name: m.Name,
       countryCode: m.Country?.Code ?? "",
