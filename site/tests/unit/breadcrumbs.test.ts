@@ -70,6 +70,14 @@ describe("buildTrail", () => {
     ]);
   });
 
+  it("abbreviates '70th Anniversary Grand Prix' using the name prefix, not countryName", () => {
+    expect(buildTrail("/race/70th-anniversary-2020", SCHEDULE)).toEqual([
+      { label: "Home", href: "/", current: false },
+      { label: "2020", href: "/season/2020", current: false },
+      { label: "70th Anniversary GP", href: "/race/70th-anniversary-2020", current: true },
+    ]);
+  });
+
   it("falls back to Home-only for an unknown slug", () => {
     expect(buildTrail("/race/does-not-exist", SCHEDULE)).toEqual([
       { label: "Home", href: "/", current: true },
