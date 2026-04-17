@@ -1,17 +1,29 @@
 import { test, expect } from "@playwright/test";
 
-test("home grid shows 22 driver cards", async ({ page }) => {
+test("home renders season tiles including 2026", async ({ page }) => {
   await page.goto("/");
+  await expect(page.getByRole("heading", { name: "Seasons" })).toBeVisible();
+  await expect(page.getByRole("link", { name: /2026/ })).toBeVisible();
+});
+
+test("drill into 2026 → Australian GP → Tyre Inventory", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("link", { name: /2026/ }).click();
+  await expect(page).toHaveURL(/\/season\/2026$/);
+
+  await page.getByRole("link", { name: /Australian Grand Prix/ }).click();
+  await expect(page).toHaveURL(/\/race\/australia-2026$/);
   await expect(page.getByRole("heading", { name: /Australian Grand Prix/ })).toBeVisible();
-  // Each DriverCard is an anchor with an href that starts with /driver/
-  const cards = page.locator('a[href^="/driver/"]');
+
+  await page.getByRole("link", { name: /Tyre Inventory/ }).click();
+  await expect(page).toHaveURL(/\/race\/australia-2026\/tyres$/);
+  const cards = page.locator('a[href^="/race/australia-2026/driver/"]');
   await expect(cards).toHaveCount(22);
 });
 
-test("clicking a card navigates to the driver detail page", async ({ page }) => {
-  await page.goto("/");
-  const first = page.locator('a[href^="/driver/"]').first();
-  const href = await first.getAttribute("href");
-  await first.click();
-  await expect(page).toHaveURL(new RegExp(href!));
+test("non-featured race tile is disabled and shows Coming soon", async ({ page }) => {
+  await page.goto("/season/2026");
+  const japaneseTile = page.locator('div[aria-disabled="true"]', { hasText: /Japanese Grand Prix/ });
+  await expect(japaneseTile).toBeVisible();
+  await expect(japaneseTile).toContainText(/Coming soon/i);
 });
