@@ -27,10 +27,16 @@ from f1.models import (
     Race,
     SessionKey,
     SessionRef,
+    StatusBand,
     TyreSet,
 )
-from f1.parse import parse_stream
+from f1.parse import Event, parse_stream
 from f1.reduce import reduce_events
+from f1.track_status import (
+    build_status_bands,
+    collect_lap_boundaries,
+    collect_status_transitions,
+)
 
 # Most-specific first: "Sprint_Qualifying" MUST be checked before both
 # "Sprint" and "Qualifying" to avoid a substring collision.
@@ -88,6 +94,14 @@ def _reduce_stream(session_dir: Path, filename: str) -> dict[str, object]:
     return reduce_events(events)
 
 
+def _parse_events(session_dir: Path, filename: str) -> list[Event]:
+    """Parse events without reducing — we need transitions, not final state."""
+    path = session_dir / filename
+    if not path.exists():
+        return []
+    return parse_stream(path)
+
+
 def build_race_manifest(
     *,
     data_root: Path,
@@ -117,6 +131,38 @@ def build_race_manifest(
     for key, sess_dir in sessions:
         reduced = _reduce_stream(sess_dir, "TyreStintSeries.jsonStream")
         stints_by_session[key] = extract_session_stints(key, reduced)
+
+    # Status bands per session (Race + Sprint only).
+    race_status_bands: list[StatusBand] = []
+    sprint_status_bands: list[StatusBand] = []
+    for key, sess_dir in sessions:
+        if key not in ("R", "S"):
+            continue
+        stints_for_key = stints_by_session.get(key, [])
+        if not stints_for_key:
+            continue
+        total_laps = max((s.end_laps for s in stints_for_key), default=0)
+        if total_laps < 1:
+            continue
+        ts_events = _parse_events(sess_dir, "TrackStatus.jsonStream")
+        lc_events = _parse_events(sess_dir, "LapCount.jsonStream")
+        transitions = collect_status_transitions(ts_events)
+        if transitions and not lc_events:
+            # Rare: status data but no lap reference; log and skip rather than crash.
+            print(
+                f"warning: TrackStatus present but LapCount missing for {sess_dir.name}",
+                file=sys.stderr,
+            )
+            continue
+        bands = build_status_bands(
+            transitions,
+            collect_lap_boundaries(lc_events),
+            total_laps=total_laps,
+        )
+        if key == "R":
+            race_status_bands = bands
+        else:
+            sprint_status_bands = bands
 
     # Grid positions from the Race session's TimingAppData (set right before
     # race start). Qualifying's TimingAppData does not carry GridPos.
@@ -250,6 +296,8 @@ def build_race_manifest(
         date=str(race_info.get("StartDate", ""))[:10],
         sessions=session_refs,
         drivers=drivers,
+        race_status_bands=race_status_bands,
+        sprint_status_bands=sprint_status_bands,
     )
 
     return Manifest(
