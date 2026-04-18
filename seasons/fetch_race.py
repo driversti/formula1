@@ -54,6 +54,16 @@ FEATURED_RACES: tuple[FeaturedRace, ...] = (
             "2026-03-15_Race",
         ),
     ),
+    FeaturedRace(
+        race_dir="2026/2026-03-29_Japanese_Grand_Prix",
+        sessions=(
+            "2026-03-27_Practice_1",
+            "2026-03-27_Practice_2",
+            "2026-03-28_Practice_3",
+            "2026-03-28_Qualifying",
+            "2026-03-29_Race",
+        ),
+    ),
 )
 
 MAX_WORKERS = 8
