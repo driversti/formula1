@@ -63,4 +63,26 @@ Every per-session feed F1 publishes, at a glance. **Fetched** means the file is 
 | `ContentStreams.jsonStream` | Available video/content stream URLs. | ❌ | _TBD — Phase 2 group 8_ |
 | `ChampionshipPrediction.jsonStream` | Live championship-standings prediction. | ❌ | _TBD — Phase 2 group 9_ |
 
-_TBD placeholders in this table are intentional: they get filled in by the Phase 2 task that investigates each group, which keeps each commit self-contained._
+_TBD placeholders in this table are intentional: they get filled in by the Phase 2 task that investigates each group, which keeps each commit self-contained.
+
+## Cross-reference: "I want X — which feed(s)?"
+
+Organized by the question you're likely to ask, not by filename. Feeds already fetched by CI are marked ✅; feeds available only via the full-archive download are marked ❌.
+
+- **Driver identity (TLA, number, name, team, colour)?** → `DriverList.jsonStream` ✅
+- **Session metadata (name, start time, circuit)?** → `SessionInfo.json` ✅
+- **Official finishing classification?** → `SessionData.jsonStream` ❌ (see also `TimingData.Line` as a last-known proxy ✅)
+- **Live retirement / DNF flag?** → `TimingData.Retired` ✅
+- **Per-lap lap times, sector times, gaps?** → `TimingData.jsonStream` ✅
+- **Personal bests / session bests?** → `TimingStats.jsonStream` ❌
+- **Per-driver tyre history (compound, new/used, laps)?** → `TyreStintSeries.jsonStream` ✅
+- **Currently-fitted tyre?** → `CurrentTyres.jsonStream` ❌
+- **Pit-stop timing?** → `PitLaneTimeCollection.jsonStream` ❌ + `TimingData` ✅
+- **Live track status (green/yellow/SC/VSC/red)?** → `TrackStatus.jsonStream` ❌
+- **Race Control decisions (investigations, penalties, flags)?** → `RaceControlMessages.jsonStream` ❌
+- **Weather (temp, wind, rainfall)?** → `WeatherData.jsonStream` ❌
+- **Per-car telemetry (throttle/brake/RPM/gear/DRS/speed)?** → `CarData.z.jsonStream` ❌ (compressed)
+- **Per-car position on track (XYZ)?** → `Position.z.jsonStream` ❌ (compressed)
+- **Team radio clips?** → `TeamRadio.jsonStream` ❌
+- **Current / total session laps?** → `LapCount.jsonStream` ❌
+- **Championship predictions?** → `ChampionshipPrediction.jsonStream` ❌_
