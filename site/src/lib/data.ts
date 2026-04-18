@@ -6,7 +6,7 @@ export const EXPECTED_SCHEMA_VERSION = "1.0.0";
 // Full nested schemas to compensate for the auto-generated ManifestSchema
 // using z.any() for the race field. Defined here to provide strict validation
 // without modifying the auto-generated schemas.ts.
-const SessionKeySchema = z.enum(["FP1", "FP2", "FP3", "Q", "R"]);
+const SessionKeySchema = z.enum(["FP1", "FP2", "FP3", "SQ", "S", "Q", "R"]);
 
 const TyreSetSchema = z.object({
   set_id: z.string(),
