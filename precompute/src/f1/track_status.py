@@ -33,7 +33,10 @@ def collect_lap_boundaries(events: Iterable[Event]) -> list[tuple[int, int]]:
     out: list[tuple[int, int]] = []
     for event in events:
         current = event.data.get("CurrentLap")
-        if isinstance(current, int):
+        # The live-timing feed occasionally emits CurrentLap=0 during the
+        # formation-lap window before the race begins. Skip those so the seed
+        # below always establishes lap ≥ 1 as the floor.
+        if isinstance(current, int) and current >= 1:
             out.append((event.timestamp_ms, current))
 
     if not out or out[0][1] > 1:

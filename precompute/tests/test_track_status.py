@@ -71,6 +71,20 @@ def test_collect_lap_boundaries_ignores_non_int_and_missing_values() -> None:
     assert collect_lap_boundaries(events) == [(0, 1), (3, 2)]
 
 
+def test_collect_lap_boundaries_ignores_zero_and_negative_lap_values() -> None:
+    # The live-timing feed emits CurrentLap=0 during the formation-lap window.
+    # Those must be filtered so that status timestamps in that window resolve
+    # to lap 1 (via the (0, 1) seed) rather than lap 0.
+    events = [
+        _ev(100,  {"CurrentLap": 0}),     # formation-lap artifact — skip
+        _ev(200,  {"CurrentLap": -1}),    # guard: negative also filtered
+        _ev(1000, {"CurrentLap": 1}),
+        _ev(2000, {"CurrentLap": 2}),
+    ]
+    # out[0][1] == 1 (not > 1) so the (0, 1) seed is NOT prepended.
+    assert collect_lap_boundaries(events) == [(1000, 1), (2000, 2)]
+
+
 def test_collect_lap_boundaries_empty_input_returns_seed() -> None:
     # An empty stream still returns the (0, 1) seed so downstream code can
     # clamp early-session timestamps without a special case.
