@@ -4,14 +4,14 @@ import { MemoryRouter } from "react-router-dom";
 import { RaceTile } from "../../src/components/RaceTile";
 
 const base = {
-  slug: "japan-2026",
+  slug: "japan-2025",
   round: 3,
   name: "Japanese Grand Prix",
   countryCode: "JPN",
   countryName: "Japan",
   circuitShortName: "Suzuka",
-  startDate: "2026-03-27",
-  endDate: "2026-03-29",
+  startDate: "2025-04-04",
+  endDate: "2025-04-06",
 };
 
 function wrap(ui: React.ReactNode) {

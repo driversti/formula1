@@ -11,6 +11,7 @@
 export const FEATURED_RACE_SLUGS: readonly string[] = [
   "australia-2026",
   "china-2026",
+  "japan-2026",
 ] as const;
 
 export function isFeatured(slug: string): boolean {

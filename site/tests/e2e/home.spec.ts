@@ -36,8 +36,23 @@ test("drill into 2026 → Chinese GP → Tyre Inventory", async ({ page }) => {
   await expect(cards).toHaveCount(22);
 });
 
+test("drill into 2026 → Japanese GP → Tyre Inventory", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("link", { name: /2026/ }).click();
+  await expect(page).toHaveURL(/\/season\/2026$/);
+
+  await page.getByRole("link", { name: /Japanese Grand Prix/ }).click();
+  await expect(page).toHaveURL(/\/race\/japan-2026$/);
+  await expect(page.getByRole("heading", { name: /Japanese Grand Prix/ })).toBeVisible();
+
+  await page.getByRole("link", { name: /Tyre Inventory/ }).click();
+  await expect(page).toHaveURL(/\/race\/japan-2026\/tyres$/);
+  const cards = page.locator('a[href^="/race/japan-2026/driver/"]');
+  await expect(cards).toHaveCount(22);
+});
+
 test("non-featured race tile is disabled and shows Coming soon", async ({ page }) => {
-  await page.goto("/season/2026");
+  await page.goto("/season/2025");
   const japaneseTile = page.locator('div[aria-disabled="true"]', { hasText: /Japanese Grand Prix/ });
   await expect(japaneseTile).toBeVisible();
   await expect(japaneseTile).toContainText(/Coming soon/i);
