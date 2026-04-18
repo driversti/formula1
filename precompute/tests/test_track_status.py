@@ -1,8 +1,9 @@
 """Unit tests for precompute/src/f1/track_status.py."""
 from __future__ import annotations
 
+from f1.models import StatusBand
 from f1.parse import Event
-from f1.track_status import collect_lap_boundaries, collect_status_transitions
+from f1.track_status import build_status_bands, collect_lap_boundaries, collect_status_transitions
 
 
 def _ev(ts: int, payload: dict) -> Event:
@@ -74,3 +75,24 @@ def test_collect_lap_boundaries_empty_input_returns_seed() -> None:
     # An empty stream still returns the (0, 1) seed so downstream code can
     # clamp early-session timestamps without a special case.
     assert collect_lap_boundaries([]) == [(0, 1)]
+
+
+def test_build_status_bands_standard_yellow_then_sc() -> None:
+    # Status transitions at ms: Yellow opens at 0 (lap 1), AllClear at 180000 (lap 3),
+    # SC at 2_400_000 (lap 26), AllClear at 3_000_000 (lap 32).
+    transitions = [
+        (0,       "2"),    # Yellow
+        (180_000, "1"),    # AllClear
+        (2_400_000, "4"),  # SCDeployed
+        (3_000_000, "1"),  # AllClear
+    ]
+    # Lap boundaries: CurrentLap changes at 90s intervals (93s per lap ~ Japan).
+    lap_boundaries = [(0, 1)]
+    for lap in range(2, 55):
+        lap_boundaries.append((93_000 * (lap - 1), lap))
+
+    bands = build_status_bands(transitions, lap_boundaries, total_laps=53)
+    assert bands == [
+        StatusBand(status="Yellow",     start_lap=1,  end_lap=2),
+        StatusBand(status="SCDeployed", start_lap=26, end_lap=32),
+    ]
