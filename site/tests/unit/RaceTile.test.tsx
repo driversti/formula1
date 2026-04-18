@@ -4,7 +4,7 @@ import { MemoryRouter } from "react-router-dom";
 import { RaceTile } from "../../src/components/RaceTile";
 
 const base = {
-  slug: "japan-2026",
+  slug: "japan-2025",
   round: 3,
   name: "Japanese Grand Prix",
   countryCode: "JPN",
