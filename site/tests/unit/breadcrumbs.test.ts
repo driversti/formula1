@@ -102,4 +102,16 @@ describe("buildTrail", () => {
       { label: "Legal", href: "/legal", current: true },
     ]);
   });
+
+  it("builds a trail for /race/<slug>/strategy", () => {
+    const trail = buildTrail("/race/australia-2026/strategy", SCHEDULE);
+    expect(trail.map((c) => c.label)).toEqual([
+      "Home",
+      "2026",
+      expect.any(String), // race label
+      "Strategy",
+    ]);
+    expect(trail[trail.length - 1].current).toBe(true);
+    expect(trail[trail.length - 1].href).toBe("/race/australia-2026/strategy");
+  });
 });
