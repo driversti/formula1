@@ -60,4 +60,28 @@ describe("loadManifest", () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true, json: async () => bad }));
     await expect(loadManifest("/data/x.json")).rejects.toThrow();
   });
+
+  it("accepts sprint-weekend session keys (SQ, S)", async () => {
+    const sprintFixture = {
+      ...validFixture,
+      race: {
+        ...validFixture.race,
+        slug: "china-2026",
+        name: "Chinese Grand Prix",
+        location: "Shanghai",
+        country: "China",
+        round: 2,
+        sessions: [
+          { key: "FP1", name: "Practice 1",        path: "p1/", start_utc: "2026-03-13T11:30:00" },
+          { key: "SQ",  name: "Sprint Qualifying", path: "sq/", start_utc: "2026-03-13T15:30:00" },
+          { key: "S",   name: "Sprint",            path: "s/",  start_utc: "2026-03-14T11:00:00" },
+          { key: "Q",   name: "Qualifying",        path: "q/",  start_utc: "2026-03-14T15:00:00" },
+          { key: "R",   name: "Race",              path: "r/",  start_utc: "2026-03-15T15:00:00" },
+        ],
+      },
+    };
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true, json: async () => sprintFixture }));
+    const m = await loadManifest("/data/china-2026.json");
+    expect(m.race.sessions.map((s: { key: string }) => s.key)).toEqual(["FP1", "SQ", "S", "Q", "R"]);
+  });
 });

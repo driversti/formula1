@@ -234,3 +234,26 @@ def test_full_weekend_example_verstappen() -> None:
     assert by_id["VER-SOFT-2"].laps == 3
     assert by_id["VER-SOFT-3"].laps == 2
     assert by_id["VER-SOFT-4"].laps == 3
+
+
+def test_pass_a_includes_sprint_sessions_in_chronological_order() -> None:
+    from f1.inventory import build_inventory
+
+    stints = {
+        "FP1": [],
+        "SQ": [SessionStint("SQ", "1", 0, "MEDIUM", True, 0, 2)],
+        "S":  [SessionStint("S",  "1", 0, "HARD",   True, 0, 8)],
+        "Q":  [SessionStint("Q",  "1", 0, "MEDIUM", False, 2, 1)],
+    }
+    sets = build_inventory(driver_number="1", driver_tla="VER", stints_by_session=stints)
+
+    # One MEDIUM (continued SQ → Q) and one HARD (only S).
+    assert len(sets) == 2
+    med = next(s for s in sets if s.compound == "MEDIUM")
+    assert med.first_seen_session == "SQ"
+    assert med.last_seen_session == "Q"
+    assert med.laps == 3           # 2 (SQ) + 1 (Q)
+    hard = next(s for s in sets if s.compound == "HARD")
+    assert hard.first_seen_session == "S"
+    assert hard.last_seen_session == "S"
+    assert hard.laps == 8

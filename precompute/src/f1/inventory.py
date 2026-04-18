@@ -5,7 +5,7 @@ from dataclasses import dataclass
 
 from f1.models import Compound, SessionKey, TyreSet
 
-_SESSION_ORDER: list[SessionKey] = ["FP1", "FP2", "FP3", "Q", "R"]
+_SESSION_ORDER: list[SessionKey] = ["FP1", "FP2", "FP3", "SQ", "S", "Q", "R"]
 
 
 @dataclass(frozen=True, slots=True)
@@ -120,8 +120,8 @@ def build_inventory(
     """
     sets: list[TyreSet] = []
 
-    # Pass A: FP1 -> FP2 -> FP3 -> Q, full tracking.
-    for session in ("FP1", "FP2", "FP3", "Q"):
+    # Pass A: FP1 -> FP2 -> FP3 -> SQ -> S -> Q, full tracking.
+    for session in ("FP1", "FP2", "FP3", "SQ", "S", "Q"):
         session_key: SessionKey = session  # type: ignore[assignment]
         for stint in stints_by_session.get(session_key, []):
             if stint.driver_number != driver_number:

@@ -4,6 +4,7 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -24,21 +25,26 @@ from f1.models import (
 from f1.parse import parse_stream
 from f1.reduce import reduce_events
 
-# Folder-name fragment -> SessionKey used internally
+# Most-specific first: "Sprint_Qualifying" MUST be checked before both
+# "Sprint" and "Qualifying" to avoid a substring collision.
 _SESSION_FOLDER_HINTS: list[tuple[str, SessionKey]] = [
-    ("Practice_1", "FP1"),
-    ("Practice_2", "FP2"),
-    ("Practice_3", "FP3"),
-    ("Qualifying", "Q"),
-    ("Race", "R"),
+    ("Practice_1",        "FP1"),
+    ("Practice_2",        "FP2"),
+    ("Practice_3",        "FP3"),
+    ("Sprint_Qualifying", "SQ"),
+    ("Sprint",            "S"),
+    ("Qualifying",        "Q"),
+    ("Race",              "R"),
 ]
 
 _SESSION_DISPLAY_NAME: dict[SessionKey, str] = {
     "FP1": "Practice 1",
     "FP2": "Practice 2",
     "FP3": "Practice 3",
-    "Q": "Qualifying",
-    "R": "Race",
+    "SQ":  "Sprint Qualifying",
+    "S":   "Sprint",
+    "Q":   "Qualifying",
+    "R":   "Race",
 }
 
 
@@ -134,6 +140,12 @@ def build_race_manifest(
         if key == "R":
             race_info = info
 
+    # Folder names don't always sort chronologically on sprint weekends
+    # (e.g. 2026-03-14_Qualifying sorts before 2026-03-14_Sprint even
+    # though Sprint runs first). Re-order by StartDate so the manifest's
+    # session list matches what actually happened on track.
+    session_refs.sort(key=lambda ref: ref.start_utc)
+
     meeting = race_info.get("Meeting") if isinstance(race_info.get("Meeting"), dict) else {}
     if isinstance(meeting, dict):
         race_name = str(meeting.get("Name", race_name))
@@ -191,43 +203,115 @@ def write_manifest(manifest: Manifest, out_path: Path) -> None:
     )
 
 
-def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="Build race tyre inventory JSON")
-    parser.add_argument(
-        "--data-root",
-        type=Path,
-        default=Path(__file__).resolve().parents[3] / "seasons",
-        help="Root directory containing year folders (defaults to repo_root/seasons)",
-    )
-    parser.add_argument(
-        "--race-dir",
-        default="2026/2026-03-08_Australian_Grand_Prix",
-    )
-    parser.add_argument("--season", type=int, default=2026)
-    parser.add_argument("--round", type=int, default=1, dest="round_number")
-    parser.add_argument("--slug", default="australia-2026")
-    parser.add_argument(
-        "--out",
-        type=Path,
-        default=Path(__file__).resolve().parents[2] / "out" / "australia-2026.json",
-    )
-    args = parser.parse_args(argv)
+@dataclass(frozen=True)
+class FeaturedRace:
+    slug: str
+    race_dir: str
+    season: int
+    round_number: int
 
+
+FEATURED_RACES: tuple[FeaturedRace, ...] = (
+    FeaturedRace(
+        slug="australia-2026",
+        race_dir="2026/2026-03-08_Australian_Grand_Prix",
+        season=2026,
+        round_number=1,
+    ),
+    FeaturedRace(
+        slug="china-2026",
+        race_dir="2026/2026-03-15_Chinese_Grand_Prix",
+        season=2026,
+        round_number=2,
+    ),
+)
+
+
+def _default_data_root() -> Path:
+    return Path(__file__).resolve().parents[3] / "seasons"
+
+
+def _default_out_dir() -> Path:
+    return Path(__file__).resolve().parents[2] / "out"
+
+
+def _build_one(
+    *,
+    data_root: Path,
+    out_dir: Path,
+    race: FeaturedRace,
+) -> int:
     try:
         manifest = build_race_manifest(
-            data_root=args.data_root,
-            race_dir=args.race_dir,
-            season=args.season,
-            round_number=args.round_number,
-            slug=args.slug,
+            data_root=data_root,
+            race_dir=race.race_dir,
+            season=race.season,
+            round_number=race.round_number,
+            slug=race.slug,
         )
     except RuntimeError as exc:
-        print(f"error: {exc}", file=sys.stderr)
+        print(f"error building {race.slug}: {exc}", file=sys.stderr)
         return 1
-
-    write_manifest(manifest, args.out)
-    print(f"wrote {args.out}")
+    out_path = out_dir / f"{race.slug}.json"
+    write_manifest(manifest, out_path)
+    print(f"wrote {out_path}")
     return 0
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(description="Build race tyre inventory JSON")
+    parser.add_argument("--data-root", type=Path, default=_default_data_root())
+    parser.add_argument("--slug", default=None,
+                        help="Build only the race with this slug; default is all FEATURED_RACES.")
+    parser.add_argument("--race-dir", default=None,
+                        help="Override race_dir for --slug (ignored without --slug).")
+    parser.add_argument("--season", type=int, default=None)
+    parser.add_argument("--round", type=int, default=None, dest="round_number")
+    parser.add_argument("--out", type=Path, default=None,
+                        help="Output path; only meaningful with --slug.")
+    args = parser.parse_args(argv)
+
+    if args.slug:
+        base = next((r for r in FEATURED_RACES if r.slug == args.slug), None)
+        race_dir = args.race_dir if args.race_dir else (base.race_dir if base else None)
+        season = args.season if args.season is not None else (base.season if base else None)
+        round_number = (
+            args.round_number
+            if args.round_number is not None
+            else (base.round_number if base else None)
+        )
+        if race_dir is None or season is None or round_number is None:
+            parser.error(
+                f"--slug {args.slug!r} not in FEATURED_RACES; "
+                f"supply --race-dir, --season, --round."
+            )
+        race = FeaturedRace(
+            slug=args.slug,
+            race_dir=race_dir,
+            season=season,
+            round_number=round_number,
+        )
+        if args.out:
+            write_manifest(
+                build_race_manifest(
+                    data_root=args.data_root,
+                    race_dir=race.race_dir,
+                    season=race.season,
+                    round_number=race.round_number,
+                    slug=race.slug,
+                ),
+                args.out,
+            )
+            print(f"wrote {args.out}")
+            return 0
+        return _build_one(data_root=args.data_root, out_dir=_default_out_dir(), race=race)
+
+    # No --slug: build every featured race.
+    rc = 0
+    out_dir = _default_out_dir()
+    for race in FEATURED_RACES:
+        rc |= _build_one(data_root=args.data_root, out_dir=out_dir, race=race)
+    return rc
 
 
 if __name__ == "__main__":
