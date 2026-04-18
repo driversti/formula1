@@ -56,8 +56,8 @@ Every per-session feed F1 publishes, at a glance. **Fetched** means the file is 
 | `TrackStatus.jsonStream` | Current track status code (all-clear, yellow, SC, VSC, red). | ❌ | medium |
 | `TlaRcm.jsonStream` | Plain-text mirror of RaceControlMessages — message text only, no metadata. | ❌ | medium |
 | `DriverList.jsonStream` | Driver identity: TLA, number, name, team, team colour. | ✅ | deep |
-| `WeatherData.jsonStream` | Air/track temperature, humidity, wind speed/direction, rainfall. | ❌ | _TBD — Phase 2 group 7_ |
-| `Heartbeat.jsonStream` | Feed connection keep-alive. | ❌ | _TBD — Phase 2 group 7_ |
+| `WeatherData.jsonStream` | Air/track temperature, humidity, wind speed/direction, rainfall. | ❌ | medium |
+| `Heartbeat.jsonStream` | Feed connection keep-alive. | ❌ | medium |
 | `TeamRadio.jsonStream` | Team radio clip metadata (driver, URL, timestamp). | ❌ | _TBD — Phase 2 group 8_ |
 | `AudioStreams.jsonStream` | Available audio stream URLs (commentary feeds). | ❌ | _TBD — Phase 2 group 8_ |
 | `ContentStreams.jsonStream` | Available video/content stream URLs. | ❌ | _TBD — Phase 2 group 8_ |
@@ -728,3 +728,67 @@ The first event (at ~12 ms into the session) delivers all 22 driver objects in a
 **Feeds these features** (current): driver identity (TLA, name, team, team colour, headshot) consumed by `precompute/src/f1/driver_meta.py::build_driver_meta` and rendered throughout the site — driver cards, race strategy chart, tyre inventory.
 
 **Could power** (speculative): driver nationality displays (via `CountryCode`), retro driver-number visualizations, team-lineup timeline across the season.
+
+## Environment
+
+Feeds in this group describe conditions around the session. One of them — `Heartbeat` — is a connection keep-alive grouped here by elimination rather than topical fit.
+
+### `WeatherData.jsonStream`
+
+**Fetched by CI:** ❌ no
+**Compressed:** no
+**Investigation depth:** medium
+
+Delivers one snapshot per minute of ambient track conditions. The Japanese GP Race session produced exactly 156 events over ~155 minutes — one event every ~60 seconds throughout. Each event carries a complete snapshot (no sparse patching): all seven fields are always present.
+
+All field values are **strings**, even numeric ones — consumers must parse to float.
+
+**Example event (ts ≈ 47 s into session):**
+
+```json
+{
+  "AirTemp": "19.4",
+  "TrackTemp": "37.0",
+  "Humidity": "46.1",
+  "Pressure": "1012.1",
+  "WindSpeed": "3.1",
+  "WindDirection": "115",
+  "Rainfall": "0"
+}
+```
+
+**Field inventory and observed ranges (Japanese GP Race 2026):**
+
+| Field | Type (wire) | Range observed | Notes |
+|---|---|---|---|
+| `AirTemp` | string (°C) | 17.3 – 19.5 | One decimal place |
+| `TrackTemp` | string (°C) | 29.2 – 38.3 | One decimal place |
+| `Humidity` | string (%) | 44.7 – 62.8 | One decimal place |
+| `Pressure` | string (hPa) | 1011.5 – 1012.1 | One decimal place |
+| `WindSpeed` | string (m/s) | 0.0 – 3.7 | One decimal place |
+| `WindDirection` | string (°) | 0 – 344 | Integer degrees; 0 observed when wind speed = 0 |
+| `Rainfall` | string | `"0"` only | Not a bool; appears to be a count or flag; no rain during this session |
+
+**Known quirks:** `Rainfall` is always `"0"` in a dry race; its semantics when nonzero (boolean flag vs. mm count vs. mm/hr) cannot be confirmed from this session alone.
+
+**Feeds these features** (current): none — not consumed by the precompute pipeline.
+
+**Could power** (speculative): weather overlay on race strategy timeline, session summary badge (dry/wet), track temperature trend chart.
+
+### `Heartbeat.jsonStream`
+
+**Fetched by CI:** ❌ no
+**Compressed:** no
+**Investigation depth:** medium
+
+A connection keep-alive. The Japanese GP Race produced 704 events over ~176 minutes at a perfectly uniform cadence of **one event every 15 seconds**. Each event carries a single field:
+
+```json
+{ "Utc": "2026-03-29T04:10:34.413835Z" }
+```
+
+The `timestamp_ms` values parsed by `f1.parse` do not advance uniformly (407 distinct values for 704 events), suggesting the stream offset is snapped to coarser boundaries than the UTC payload. The UTC timestamp in the payload is the accurate wall-clock time.
+
+**Feeds these features** (current): none.
+
+**Could power** (speculative): detecting whether a live session is still broadcasting (presence heartbeat), or computing exact session wall-clock start/end from the UTC payload.
