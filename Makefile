@@ -1,5 +1,11 @@
 .PHONY: install fetch-race precompute schema genzod build dev test test-py test-site test-e2e clean deploy-local
 
+# Source of truth for which race manifests the site consumes. Keep in
+# sync with FEATURED_RACES in precompute/src/f1/build.py, with
+# FEATURED_RACES in seasons/fetch_race.py, and with FEATURED_RACE_SLUGS
+# in site/src/config.ts.
+FEATURED_SLUGS := australia-2026 china-2026
+
 # -------- setup ------------------------------------------------------------
 
 install:
@@ -28,12 +34,12 @@ genzod:
 
 build: precompute genzod
 	mkdir -p site/public/data
-	cp precompute/out/australia-2026.json site/public/data/
+	for s in $(FEATURED_SLUGS); do cp precompute/out/$$s.json site/public/data/; done
 	cd site && npm run build
 
 dev: precompute genzod
 	mkdir -p site/public/data
-	cp precompute/out/australia-2026.json site/public/data/
+	for s in $(FEATURED_SLUGS); do cp precompute/out/$$s.json site/public/data/; done
 	cd site && npm run dev
 
 # -------- tests ------------------------------------------------------------
@@ -48,7 +54,7 @@ test-e2e: precompute genzod
 	# Playwright's webServer.command builds with VITE_BASE=/ so tests can
 	# hit page.goto("/") without a subpath. We only need data staged here.
 	mkdir -p site/public/data
-	cp precompute/out/australia-2026.json site/public/data/
+	for s in $(FEATURED_SLUGS); do cp precompute/out/$$s.json site/public/data/; done
 	cd site && npm run test:e2e
 
 test: test-py test-site test-e2e
