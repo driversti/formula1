@@ -16,6 +16,8 @@ function makeDriver(overrides: Partial<Driver> & { tla: string }): Driver {
     sprint_stints: [],
     final_position: null,
     dnf_at_lap: null,
+    sprint_final_position: null,
+    sprint_dnf_at_lap: null,
     ...overrides,
   };
 }
@@ -87,6 +89,24 @@ describe("<StrategyChart />", () => {
     });
     render(<StrategyChart drivers={[sprinter]} sessionKey="S" totalLaps={19} />);
     expect(screen.getAllByTestId("strategy-row")).toHaveLength(1);
+  });
+
+  it("uses sprint-specific position fields when sessionKey=S", () => {
+    // This driver is a Race DNF but a Sprint finisher. On the Sprint tab the
+    // trailer should show the Sprint P-position, NOT the Race RET.
+    const driver = makeDriver({
+      tla: "VER",
+      final_position: null,
+      dnf_at_lap: 48,
+      sprint_final_position: 1,
+      sprint_dnf_at_lap: null,
+      sprint_stints: [
+        { stint_idx: 0, compound: "MEDIUM", start_lap: 1, end_lap: 18, laps: 18, new: true },
+      ],
+    });
+    render(<StrategyChart drivers={[driver]} sessionKey="S" totalLaps={18} />);
+    expect(screen.getByText("P1")).toBeInTheDocument();
+    expect(screen.queryByText(/RET L48/)).not.toBeInTheDocument();
   });
 
   it("shows tooltip content on segment hover", () => {

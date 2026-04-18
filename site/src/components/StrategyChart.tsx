@@ -29,6 +29,8 @@ type Driver = {
   sprint_stints: RaceStint[];
   final_position: number | null;
   dnf_at_lap: number | null;
+  sprint_final_position: number | null;
+  sprint_dnf_at_lap: number | null;
 };
 
 type Props = {
@@ -82,8 +84,8 @@ function prepareRows(drivers: Driver[], sessionKey: "R" | "S"): Row[] {
     .map<Row>((d) => ({
       driver: d,
       stints: sessionKey === "R" ? d.race_stints : d.sprint_stints,
-      finalPos: d.final_position,
-      dnfAtLap: d.dnf_at_lap,
+      finalPos: sessionKey === "R" ? d.final_position : d.sprint_final_position,
+      dnfAtLap: sessionKey === "R" ? d.dnf_at_lap : d.sprint_dnf_at_lap,
     }))
     .filter((r) => r.stints.length > 0)
     .sort((a, b) => {

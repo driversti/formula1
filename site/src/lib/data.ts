@@ -38,6 +38,8 @@ const DriverInventorySchema = z.object({
   sprint_stints: z.array(RaceStintSchema).default([]),
   final_position: z.union([z.number().int().min(1).max(22), z.null()]).default(null),
   dnf_at_lap: z.union([z.number().int().min(1), z.null()]).default(null),
+  sprint_final_position: z.union([z.number().int().min(1).max(22), z.null()]).default(null),
+  sprint_dnf_at_lap: z.union([z.number().int().min(1), z.null()]).default(null),
 });
 
 const RaceSchema = z.object({

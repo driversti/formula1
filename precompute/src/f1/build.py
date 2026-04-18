@@ -134,6 +134,14 @@ def build_race_manifest(
             final_pos_and_retired = extract_final_positions_and_retirements(td)
             break
 
+    # Sprint classification from TimingData (when a sprint session is present).
+    sprint_pos_and_retired: dict[str, tuple[int | None, bool]] = {}
+    for key, sess_dir in sessions:
+        if key == "S":
+            td_s = _reduce_stream(sess_dir, "TimingData.jsonStream")
+            sprint_pos_and_retired = extract_final_positions_and_retirements(td_s)
+            break
+
     # Session refs (metadata + path relative to data_root).
     session_refs: list[SessionRef] = []
     race_info: dict[str, object] = {}
@@ -194,6 +202,18 @@ def build_race_manifest(
         else:
             final_position = final_line
             dnf_at_lap = None
+
+        sprint_line, sprint_retired = sprint_pos_and_retired.get(racing_number, (None, False))
+        if not sprint_stints:
+            sprint_final_position = None
+            sprint_dnf_at_lap = None
+        elif sprint_retired:
+            sprint_final_position = None
+            sprint_dnf_at_lap = sprint_stints[-1].end_lap
+        else:
+            sprint_final_position = sprint_line
+            sprint_dnf_at_lap = None
+
         drivers.append(
             DriverInventory(
                 racing_number=meta.racing_number,
@@ -207,6 +227,8 @@ def build_race_manifest(
                 sprint_stints=sprint_stints,
                 final_position=final_position,
                 dnf_at_lap=dnf_at_lap,
+                sprint_final_position=sprint_final_position,
+                sprint_dnf_at_lap=sprint_dnf_at_lap,
             )
         )
     drivers.sort(key=lambda d: d.tla)

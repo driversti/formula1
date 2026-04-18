@@ -212,3 +212,17 @@ def test_driver_inventory_rejects_final_position_out_of_range() -> None:
             sets=[],
             final_position=0,
         )
+
+
+def test_driver_inventory_defaults_for_sprint_position_and_dnf() -> None:
+    inv = DriverInventory(
+        racing_number="1",
+        tla="VER",
+        full_name="Max Verstappen",
+        team_name="Red Bull Racing",
+        team_color="#4781D7",
+        grid_position=1,
+        sets=[],
+    )
+    assert inv.sprint_final_position is None
+    assert inv.sprint_dnf_at_lap is None

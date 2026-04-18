@@ -356,3 +356,34 @@ def test_build_race_manifest_leaves_position_fields_none_when_no_race_stints(
         if not d.race_stints:
             assert d.final_position is None
             assert d.dnf_at_lap is None
+
+
+def test_build_race_manifest_marks_sprint_finishers(mini_race_root: Path) -> None:
+    manifest = build_race_manifest(
+        data_root=mini_race_root,
+        race_dir="2026/2026-03-15_Chinese_Grand_Prix",
+        season=2026,
+        round_number=2,
+        slug="china-2026",
+    )
+    ver = next(d for d in manifest.race.drivers if d.tla == "VER")
+    lec = next(d for d in manifest.race.drivers if d.tla == "LEC")
+    assert ver.sprint_final_position == 1
+    assert ver.sprint_dnf_at_lap is None
+    assert lec.sprint_final_position == 2
+    assert lec.sprint_dnf_at_lap is None
+
+
+def test_build_race_manifest_leaves_sprint_fields_none_on_non_sprint_weekend(
+    mini_race_root: Path,
+) -> None:
+    manifest = build_race_manifest(
+        data_root=mini_race_root,
+        race_dir="2026/2026-03-08_Australian_Grand_Prix",
+        season=2026,
+        round_number=1,
+        slug="australia-2026",
+    )
+    for d in manifest.race.drivers:
+        assert d.sprint_final_position is None
+        assert d.sprint_dnf_at_lap is None
