@@ -52,9 +52,9 @@ Every per-session feed F1 publishes, at a glance. **Fetched** means the file is 
 | `PitLaneTimeCollection.jsonStream` | Per-pit-stop duration and lap number; insert/delete pair per stop, final state always empty. | ❌ | medium |
 | `CarData.z.jsonStream` | Compressed per-car telemetry (throttle, brake, RPM, gear, speed). | ❌ | medium |
 | `Position.z.jsonStream` | Compressed per-car XYZ positions on track. | ❌ | medium |
-| `RaceControlMessages.jsonStream` | Race Control messages: flags, investigations, penalties. | ❌ | _TBD — Phase 2 group 5_ |
-| `TrackStatus.jsonStream` | Current track status code (all-clear, yellow, SC, VSC, red). | ❌ | _TBD — Phase 2 group 5_ |
-| `TlaRcm.jsonStream` | Per-driver abbreviated race-control messages (TLA-indexed). | ❌ | _TBD — Phase 2 group 5_ |
+| `RaceControlMessages.jsonStream` | Race Control messages: flags, investigations, penalties. | ❌ | medium |
+| `TrackStatus.jsonStream` | Current track status code (all-clear, yellow, SC, VSC, red). | ❌ | medium |
+| `TlaRcm.jsonStream` | Plain-text mirror of RaceControlMessages — message text only, no metadata. | ❌ | medium |
 | `DriverList.jsonStream` | Driver identity: TLA, number, name, team, team colour. | ✅ | deep |
 | `WeatherData.jsonStream` | Air/track temperature, humidity, wind speed/direction, rainfall. | ❌ | _TBD — Phase 2 group 7_ |
 | `Heartbeat.jsonStream` | Feed connection keep-alive. | ❌ | _TBD — Phase 2 group 7_ |
@@ -587,3 +587,115 @@ Channel `"1"` (DRS) is **absent** from this dataset; no DRS signal is present in
 **Feeds these features** (current): none.
 
 **Could power** (speculative): animated track-map with all 22 cars, on-track position visualization, overtake-detection heuristics (position crossings), safety-car bunching analysis.
+
+## Race control
+
+Feeds in this group carry Race Control decisions — flags, safety-car / VSC calls, investigations, and penalties. None is currently fetched in CI; all three are core candidates for any feature involving race-timeline overlays, flag states, or penalty analysis.
+
+### `RaceControlMessages.jsonStream`
+
+**Fetched by CI:** no
+**Compressed:** no
+**Investigation depth:** medium
+
+**Summary.** The primary Race Control feed. `parse_stream` returns one event per on-screen RC message (47 in Japan 2026 Race). The outer payload shape varies by event type: the first event wraps messages in a JSON array (`{"Messages": [...]}`); subsequent events wrap messages in a numbered JSON object (`{"Messages": {"1": {...}, "2": {...}}}`). Each inner message always carries `Utc`, `Lap`, `Category`, and `Message` (human-readable text); optional fields depend on category.
+
+**Fields per message.**
+- `Category` — `"Flag"` | `"SafetyCar"` | `"Other"` (Japan 2026: 24 / 2 / 21)
+- `Flag` — flag type when `Category = "Flag"`: `GREEN`, `YELLOW`, `DOUBLE YELLOW`, `CLEAR`, `CHEQUERED`, `BLACK AND WHITE`, `BLUE`
+- `Scope` — `"Track"` | `"Sector"` | `"Driver"` (present for flag messages)
+- `Sector` — integer sector number (1–N) when `Scope = "Sector"`
+- `RacingNumber` — car number string when `Scope = "Driver"` (11 driver-specific messages in Japan 2026, all blue flags or black-and-white flags)
+- `Status` — SafetyCar state string: `"DEPLOYED"` or `"IN THIS LAP"` (SafetyCar messages only)
+- `Mode` — `"SAFETY CAR"` or `"VIRTUAL SAFETY CAR"` (SafetyCar messages only; Japan 2026 had no VSC)
+- `Utc`, `Lap` — wall-clock time (UTC) and lap number at time of message
+
+**No penalty-specific category.** Penalty and investigation messages fall under `Category: "Other"` as free-text strings (e.g. `"TURN 13 INCIDENT INVOLVING CARS 43 (COL) AND 87 (BEA) NOTED"`, `"FIA STEWARDS: ... REVIEWED NO FURTHER INVESTIGATION"`). Lap deletion notices also appear in `"Other"`.
+
+**Example messages (Japan 2026 Race).**
+
+Flag — sector yellow (Lap 22):
+```json
+{
+  "Utc": "2026-03-29T05:47:54", "Lap": 22,
+  "Category": "Flag", "Flag": "YELLOW", "Scope": "Sector", "Sector": 21,
+  "Message": "YELLOW IN TRACK SECTOR 21"
+}
+```
+
+SafetyCar deployed (Lap 22):
+```json
+{
+  "Utc": "2026-03-29T05:48:11", "Lap": 22,
+  "Category": "SafetyCar", "Status": "DEPLOYED", "Mode": "SAFETY CAR",
+  "Message": "SAFETY CAR DEPLOYED"
+}
+```
+
+Driver-specific flag (Lap 15):
+```json
+{
+  "Utc": "2026-03-29T05:37:09", "Lap": 15,
+  "Category": "Flag", "Flag": "BLACK AND WHITE", "Scope": "Driver",
+  "RacingNumber": "41", "Message": "BLACK AND WHITE FLAG FOR CAR 41 (LIN) - MOVING UNDER BRAKING"
+}
+```
+
+**Known quirks.**
+- **Quirk #7 (inconsistent outer wrapper):** The very first event uses a JSON array as the `Messages` value; all subsequent events use a numbered-key object. Parsers must handle both shapes.
+- Penalties and investigations are free-text in `Category: "Other"` — there is no structured penalty field or dedicated penalty category.
+
+**Feeds these features** (current): none.
+
+**Could power** (speculative): flag/SC/VSC overlay on race strategy chart, penalty audit log, live race-control banner, investigation timeline.
+
+### `TrackStatus.jsonStream`
+
+**Fetched by CI:** no
+**Compressed:** no
+**Investigation depth:** medium
+
+**Summary.** A small enum feed that records transitions in overall track status. `parse_stream` returns one event per status change (5 in Japan 2026 Race). Each event payload is `{"Status": "<code>", "Message": "<label>"}`.
+
+**Observed status codes (Japan 2026 Race):**
+| Code | `Message` | Meaning |
+|------|-----------|---------|
+| `"1"` | `AllClear` | Track fully clear; green-flag racing |
+| `"2"` | `Yellow` | At least one sector under yellow |
+| `"4"` | `SCDeployed` | Safety Car deployed |
+
+VSC codes (`"6"` = `VSCDeployed`, `"7"` = `VSCEnding`) and red flag (`"5"` = `Red`) are part of the known enum but did not appear in Japan 2026 Race.
+
+**Status sequence for Japan 2026 Race** (5 transitions):
+`Yellow` → `AllClear` → `Yellow` → `SCDeployed` → `AllClear`
+
+**Known quirks.**
+- Status transitions can fire before the corresponding `RaceControlMessages` event is broadcast; treat `TrackStatus` as the authoritative machine-readable flag state and `RaceControlMessages` as the human-readable annotation.
+- `"2"` (Yellow) fires even for a single-sector yellow; it does not distinguish local from widespread yellows. Use `RaceControlMessages` with `Scope/Sector` to determine which sectors are affected.
+
+**Feeds these features** (current): none.
+
+**Could power** (speculative): flag/SC/VSC overlay on race strategy chart, flag-state background colouring on any time-series chart.
+
+### `TlaRcm.jsonStream`
+
+**Fetched by CI:** no
+**Compressed:** no
+**Investigation depth:** medium
+
+**Summary.** A stripped-down plain-text mirror of `RaceControlMessages`. `parse_stream` returns one event per RC message (47 in Japan 2026 Race — exactly matching `RaceControlMessages`). Every event payload contains exactly two fields: `Timestamp` (local wall-clock time as a UTC-format ISO string) and `Message` (the identical human-readable text from `RaceControlMessages`).
+
+**Disambiguation from `RaceControlMessages`.**
+- `TlaRcm` has **no** `Category`, `Flag`, `Scope`, `Sector`, `RacingNumber`, `Status`, `Mode`, or `Lap` fields. It carries only message text.
+- The name suggests TLA (Three-Letter Abbreviation) indexing, but in practice all 47 events in Japan 2026 Race are flat `{Timestamp, Message}` objects — not keyed by TLA or racing number.
+- Timestamps differ slightly: `RaceControlMessages` uses `Utc` (just date + time, no milliseconds); `TlaRcm` uses `Timestamp` (full ISO string in local/JST time).
+- Use `RaceControlMessages` for any structured analysis. `TlaRcm` is suitable only if you need a simple ordered log of RC message text without parsing category-specific fields.
+
+**Example event:**
+```json
+{ "Timestamp": "2026-03-29T14:48:11", "Message": "SAFETY CAR DEPLOYED" }
+```
+
+**Feeds these features** (current): none.
+
+**Could power** (speculative): simple race-control banner (text only), human-readable RC log export.
