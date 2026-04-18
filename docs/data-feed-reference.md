@@ -48,8 +48,8 @@ Every per-session feed F1 publishes, at a glance. **Fetched** means the file is 
 | `LapSeries.jsonStream` | Per-driver lap-by-lap position series. | ❌ | medium |
 | `ExtrapolatedClock.jsonStream` | Extrapolated session clock (remaining time, running flag). | ❌ | medium |
 | `TyreStintSeries.jsonStream` | Per-driver tyre stint series (compound, new/used, lap counters). | ✅ | deep |
-| `CurrentTyres.jsonStream` | Currently-fitted tyre per driver. | ❌ | _TBD — Phase 2 group 3_ |
-| `PitLaneTimeCollection.jsonStream` | Pit-lane timing per pit event. | ❌ | _TBD — Phase 2 group 3_ |
+| `CurrentTyres.jsonStream` | Currently-fitted tyre per driver (compound + new/used snapshot, updates on pit exit). | ❌ | medium |
+| `PitLaneTimeCollection.jsonStream` | Per-pit-stop duration and lap number; insert/delete pair per stop, final state always empty. | ❌ | medium |
 | `CarData.z.jsonStream` | Compressed per-car telemetry (throttle, brake, RPM, gear, speed, DRS). | ❌ | _TBD — Phase 2 group 4_ |
 | `Position.z.jsonStream` | Compressed per-car XYZ positions on track. | ❌ | _TBD — Phase 2 group 4_ |
 | `RaceControlMessages.jsonStream` | Race Control messages: flags, investigations, penalties. | ❌ | _TBD — Phase 2 group 5_ |
@@ -414,3 +414,91 @@ Reduced example for driver 12 (Antonelli, race winner):
 **Feeds these features** (current): none.
 
 **Could power** (speculative): session countdown timer, race-start detection (transition from `Extrapolating: false` to `true`), race-end time estimation.
+
+## Tyres & pit
+
+Feeds in this group describe per-driver tyre history and pit-lane activity. One of the three — `TyreStintSeries` — is already consumed by the production precompute pipeline as the source for the pre-race tyre inventory.
+
+### `TyreStintSeries.jsonStream`
+
+**Fetched by CI:** ✅ yes (via `seasons/fetch_race.py`)
+**Compressed:** no
+**Investigation depth:** deep — used in production
+
+**Summary.** The authoritative tyre-stint record. State is keyed `Stints → {driver_number → {stint_idx → {Compound, New, TotalLaps, StartLaps, TyresNotChanged}}}`. The stream opens with a bootstrap that initialises all drivers to stint index `"0"`, then emits incremental patches approximately once per lap as `TotalLaps` increments. A new stint index appears at pit exit with `Compound` and `New` reset; a brief transitional entry with `Compound: "UNKNOWN"` precedes the definitive compound name for some pit stops. Japan 2026 Race: 539 events, 22 drivers, 2–7 stints per driver.
+
+**Example events** (Japan 2026 Race):
+```json
+{"Stints": {"1": {"0": {"Compound": "MEDIUM", "New": "true", "TyresNotChanged": "0", "TotalLaps": 0, "StartLaps": 0}}}}
+{"Stints": {"1": {"0": {"TotalLaps": 1}}, "16": {"0": {"TotalLaps": 1}}, "63": {"0": {"TotalLaps": 1}}}}
+{"Stints": {"1": {"1": {"Compound": "HARD", "New": "true", "TyresNotChanged": "0", "TotalLaps": 0, "StartLaps": 0}}}}
+```
+
+**Known quirks.**
+- **Quirk #1 — `TotalLaps` is cumulative tyre wear, not stint laps.** `TotalLaps` counts total laps on the physical tyre set across all sessions it has run, including any prior use before this weekend session. `StartLaps` is the wear when the set was fitted for this stint. **Stint length = `TotalLaps − StartLaps`**. The in-repo property is `SessionStint.stint_laps` in `precompute/src/f1/inventory.py`. This was mis-handled until PR #7; `_derive_stint_from_session_stints` (renamed to `extract_session_stints`) is the primary consumer.
+- **Quirk #2 — feed can silently stop updating mid-session after a pit stop.** Observed concretely: RUS in China Sprint 2026 — after his pit stop the feed emitted no further `TotalLaps` increments for his new stint. Reconciliation is done in `build_race_stints` (`inventory.py`) using `TimingData.NumberOfLaps` lap counts sourced via `driver_meta.py::extract_lap_counts`: if the sum of stint laps from this feed is less than the authoritative lap count, the final stint's `end_lap` is extended by the gap.
+- `New`, `TyresNotChanged`, and numeric fields (`TotalLaps`, `StartLaps`) all arrive as **strings**, not native types. Use `_to_bool` / `_to_int` helpers in `inventory.py`.
+- Stint indices are string keys (`"0"`, `"1"`, …), not integers.
+- Stints with `Compound: "UNKNOWN"` represent transient in-pit states and are filtered out in `extract_session_stints`.
+
+**Feeds these features** (current): tyre inventory (`precompute/src/f1/inventory.py` → `DriverInventory.sets`); race strategy chart (`DriverInventory.race_stints` / `sprint_stints` via `build_race_stints` in `inventory.py`).
+
+**Could power** (speculative): animated tyre-wear gauge, compound-usage heat map.
+
+### `CurrentTyres.jsonStream`
+
+**Fetched by CI:** ❌ no
+**Compressed:** no
+**Investigation depth:** medium
+
+**Summary.** A "right-now" snapshot stream, parallel to `TyreStintSeries` but much lighter. State is keyed `Tyres → {driver_number → {Compound, New}}` — only the currently-fitted compound and whether it is still classified as new. Updates fire on pit-exit events (roughly 1–3 events per stop per driver). Japan 2026 Race: only 36 events total (vs 539 for `TyreStintSeries`). The `New` field uses native Python booleans (`True`/`False`) unlike the string `"true"`/`"false"` in `TyreStintSeries`. Some pit events emit two updates — first `Compound: "UNKNOWN", New: False` (tyres off), then the definitive compound (tyres on).
+
+**Example events** (Japan 2026 Race):
+```json
+{"Tyres": {"1": {"Compound": "MEDIUM", "New": true}, ..., "77": {"Compound": "HARD", "New": true}}}
+{"Tyres": {"1": {"Compound": "UNKNOWN", "New": false}}}
+{"Tyres": {"1": {"Compound": "HARD", "New": true}}}
+{"Tyres": {"16": {"Compound": "HARD"}}}
+```
+
+**Known quirks.**
+- `New` uses native `bool` here, not string — unlike `TyreStintSeries`. Normalize defensively when consuming alongside other feeds.
+- Some updates include only `Compound` without `New` (e.g. driver 16 above); the merge-patch state retains the prior `New` value.
+- A mid-stop `UNKNOWN` state appears for some but not all drivers (present for drivers 1, 87, 41, 10, 5, 30, 55, 27; absent for 16, 43, 81, 6, 31, etc.), so callers must not assume UNKNOWN always precedes the definitive compound.
+
+**Feeds these features** (current): none — `TyreStintSeries` is used instead for all production tyre logic.
+
+**Could power** (speculative): real-time "current tyre" indicator overlay, pit-stop compound-detection without needing to diff `TyreStintSeries` stint indices.
+
+### `PitLaneTimeCollection.jsonStream`
+
+**Fetched by CI:** ❌ no
+**Compressed:** no
+**Investigation depth:** medium
+
+**Summary.** Records individual pit-stop durations keyed by driver number. State is keyed `PitTimes → {driver_number → {RacingNumber, Duration, Lap}}`. Each pit-stop produces exactly two events: an insert (duration + lap number appears) followed by a `_deleted` removal a few seconds later when the car exits. The final reduced state is always empty `{}`. Japan 2026 Race: 58 events covering 29 pit stops across all drivers. Driver 23 (Albon) appears repeatedly in the late-race sequence — consecutive entries on laps 45–49 — due to repeated penalty pit stops.
+
+**Example events** (Japan 2026 Race):
+```json
+{"PitTimes": {"1": {"RacingNumber": "1", "Duration": "23.3", "Lap": "16"}}}
+{"PitTimes": {"_deleted": ["1"]}}
+{"PitTimes": {"87": {"RacingNumber": "87", "Duration": "25.0", "Lap": "16"}}}
+{"PitTimes": {"_deleted": ["87"]}}
+```
+
+**Pit-stop-timeline feature analysis.**
+- **Pit-stop duration:** provided directly as `Duration` (string, decimal seconds, e.g. `"23.3"`). No derivation needed.
+- **Lap number:** `Lap` (string integer) identifies which lap the driver pitted on. Matches the `StartLaps` boundary in `TyreStintSeries` (lap 16 pit = `TyreStintSeries` stint index 0 shows `TotalLaps: 16`).
+- **Pit entry / exit timestamps:** not carried explicitly. The insert event's `timestamp_ms` corresponds to approximately pit entry (the stop timer starting); the `_deleted` event's `timestamp_ms` is approximately pit exit. Gap between the two is ~30–40 s (consistent with `Duration` + a margin).
+- **Per-driver vs per-event:** the key is driver number, but only one driver per key at a time. Multiple simultaneous stops appear as separate keys in the same event or consecutive events (see laps 21–22 in Japan where 8 drivers pitted in 2 laps).
+- **Alignment with `TyreStintSeries`:** `Lap` values align with `TyreStintSeries` `TotalLaps` at the end of the previous stint. The feeds can be joined on `(driver_number, lap)` to enrich stints with stop durations.
+- **Limitation:** because `_deleted` wipes the entry on pit exit, there is no historical accumulation in the reduced state. To build a per-driver pit-stop history, callers must collect insert events before they are deleted (i.e. consume the raw event stream, not the terminal state).
+
+**Known quirks.**
+- `Duration` and `Lap` are strings, not numbers.
+- The final reduced `PitTimes` state is always `{}` — a reduce-then-read approach yields nothing. The raw event stream must be walked.
+- Driver 23 in Japan 2026 logged 5 pit stops on laps 45–49 with `TyresNotChanged: "1"` in `TyreStintSeries` — penalty visits. `Duration` values were 23.0, 24.1, 26.0, 32.7, 24.3 s respectively; the 32.7 s stop likely involved a wheel-gun issue.
+
+**Feeds these features** (current): none.
+
+**Could power** (speculative): pit-stop-duration bar chart, undercut/overcut analysis (pair with `TyreStintSeries` stint laps and `TimingData` lap times), pit-stop heat map across the field.
