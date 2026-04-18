@@ -699,3 +699,32 @@ VSC codes (`"6"` = `VSCDeployed`, `"7"` = `VSCEnding`) and red flag (`"5"` = `Re
 **Feeds these features** (current): none.
 
 **Could power** (speculative): simple race-control banner (text only), human-readable RC log export.
+
+## Drivers
+
+### `DriverList.jsonStream`
+
+**Fetched by CI:** ✅ yes (via `seasons/fetch_race.py`)
+**Compressed:** no
+**Investigation depth:** deep — used in production
+
+The first event (at ~12 ms into the session) delivers all 22 driver objects in a single top-level dict keyed by racing-number string. Subsequent events (153 total over ~149 minutes) are sparse patches that update only the `Line` field as live positions change during the session.
+
+**Example event (first, abbreviated):**
+
+```json
+{
+  "12": {
+    "RacingNumber": "12", "BroadcastName": "K ANTONELLI", "FullName": "Kimi ANTONELLI",
+    "Tla": "ANT", "Line": 1, "TeamName": "Mercedes", "TeamColour": "00D7B6",
+    "FirstName": "Kimi", "LastName": "Antonelli", "Reference": "ANDANT01",
+    "HeadshotUrl": "https://media.formula1.com/.../andant01.png.transform/1col/image.png"
+  }
+}
+```
+
+**Known quirks:** `TeamColour` is a six-digit hex string **without** the leading `#` (e.g. `"00D7B6"`). `driver_meta.py::_normalize_color` prepends `#` before the value reaches the site. `Line` in this feed is the entry-list/grid line number, not a live race position — live positions come from `TimingData`. No `_deleted` operations were observed; drivers do not disappear even if they retire.
+
+**Feeds these features** (current): driver identity (TLA, name, team, team colour, headshot) consumed by `precompute/src/f1/driver_meta.py::build_driver_meta` and rendered throughout the site — driver cards, race strategy chart, tyre inventory.
+
+**Could power** (speculative): driver nationality displays (via `CountryCode`), retro driver-number visualizations, team-lineup timeline across the season.
