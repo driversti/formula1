@@ -13,6 +13,7 @@ from f1.driver_meta import (
     build_driver_meta,
     extract_final_positions_and_retirements,
     extract_grid_positions,
+    extract_lap_counts,
 )
 from f1.inventory import (
     SessionStint,
@@ -126,20 +127,24 @@ def build_race_manifest(
             grid_positions = extract_grid_positions(ta)
             break
 
-    # Final race classification from TimingData: last Line value + Retired flag.
-    final_pos_and_retired: dict[str, tuple[int | None, bool]] = {}
+    # Final race classification and lap counts from TimingData.
+    race_final_pos_and_retired: dict[str, tuple[int | None, bool]] = {}
+    race_lap_counts: dict[str, int] = {}
     for key, sess_dir in sessions:
         if key == "R":
             td = _reduce_stream(sess_dir, "TimingData.jsonStream")
-            final_pos_and_retired = extract_final_positions_and_retirements(td)
+            race_final_pos_and_retired = extract_final_positions_and_retirements(td)
+            race_lap_counts = extract_lap_counts(td)
             break
 
-    # Sprint classification from TimingData (when a sprint session is present).
+    # Sprint classification and lap counts from TimingData (when a sprint session is present).
     sprint_pos_and_retired: dict[str, tuple[int | None, bool]] = {}
+    sprint_lap_counts: dict[str, int] = {}
     for key, sess_dir in sessions:
         if key == "S":
             td_s = _reduce_stream(sess_dir, "TimingData.jsonStream")
             sprint_pos_and_retired = extract_final_positions_and_retirements(td_s)
+            sprint_lap_counts = extract_lap_counts(td_s)
             break
 
     # Session refs (metadata + path relative to data_root).
@@ -187,12 +192,14 @@ def build_race_manifest(
         race_stints = build_race_stints(
             driver_number=racing_number,
             stints_for_session=stints_by_session.get("R", []),
+            driver_lap_count=race_lap_counts.get(racing_number),
         )
         sprint_stints = build_race_stints(
             driver_number=racing_number,
             stints_for_session=stints_by_session.get("S", []),
+            driver_lap_count=sprint_lap_counts.get(racing_number),
         )
-        final_line, retired = final_pos_and_retired.get(racing_number, (None, False))
+        final_line, retired = race_final_pos_and_retired.get(racing_number, (None, False))
         if not race_stints:
             final_position = None
             dnf_at_lap = None

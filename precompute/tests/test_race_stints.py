@@ -66,3 +66,40 @@ def test_build_race_stints_sorted_by_stint_idx_even_when_input_is_not() -> None:
     assert [s.stint_idx for s in stints] == [0, 1]
     assert stints[0].start_lap == 1
     assert stints[1].start_lap == 19
+
+
+def test_build_race_stints_extends_last_stint_when_lap_count_exceeds_sum() -> None:
+    # Simulates RUS: TyreStintSeries under-reports, NumberOfLaps is
+    # authoritative and larger.
+    session = [
+        SessionStint("S", "1", 0, "MEDIUM", False, 3, 16),  # stint_laps = 13
+    ]
+    stints = build_race_stints(
+        driver_number="1",
+        stints_for_session=session,
+        driver_lap_count=19,
+    )
+    assert len(stints) == 1
+    assert stints[0].laps == 19
+    assert stints[0].end_lap == 19
+
+
+def test_build_race_stints_no_extension_when_lap_count_matches() -> None:
+    session = [SessionStint("R", "1", 0, "HARD", True, 0, 19)]
+    stints = build_race_stints(
+        driver_number="1",
+        stints_for_session=session,
+        driver_lap_count=19,
+    )
+    assert stints[0].laps == 19
+
+
+def test_build_race_stints_no_extension_when_lap_count_lower() -> None:
+    # Don't trim — safer to trust TyreStintSeries in this direction.
+    session = [SessionStint("R", "1", 0, "MEDIUM", True, 0, 20)]
+    stints = build_race_stints(
+        driver_number="1",
+        stints_for_session=session,
+        driver_lap_count=15,
+    )
+    assert stints[0].laps == 20

@@ -113,3 +113,48 @@ def test_extract_final_positions_and_retirements_empty_state_returns_empty() -> 
 
     assert extract_final_positions_and_retirements({}) == {}
     assert extract_final_positions_and_retirements({"Lines": {}}) == {}
+
+
+def test_extract_lap_counts_reads_number_of_laps() -> None:
+    from f1.driver_meta import extract_lap_counts
+
+    state: dict[str, object] = {
+        "Lines": {
+            "1":  {"NumberOfLaps": 19},
+            "16": {"NumberOfLaps": 12},
+            "44": {"NumberOfLaps": 0},
+        }
+    }
+    assert extract_lap_counts(state) == {"1": 19, "16": 12, "44": 0}
+
+
+def test_extract_lap_counts_handles_missing_and_string_forms() -> None:
+    from f1.driver_meta import extract_lap_counts
+
+    state: dict[str, object] = {
+        "Lines": {
+            "1":  {"NumberOfLaps": "19"},   # string form parses to 19
+            "16": {"Retired": True},         # no NumberOfLaps → absent from result
+        }
+    }
+    result = extract_lap_counts(state)
+    assert result == {"1": 19}
+
+
+def test_extract_lap_counts_drops_negative_values() -> None:
+    from f1.driver_meta import extract_lap_counts
+
+    state: dict[str, object] = {
+        "Lines": {
+            "1":  {"NumberOfLaps": -1},   # negative → dropped
+            "16": {"NumberOfLaps": 5},
+        }
+    }
+    assert extract_lap_counts(state) == {"16": 5}
+
+
+def test_extract_lap_counts_empty_state() -> None:
+    from f1.driver_meta import extract_lap_counts
+
+    assert extract_lap_counts({}) == {}
+    assert extract_lap_counts({"Lines": {}}) == {}

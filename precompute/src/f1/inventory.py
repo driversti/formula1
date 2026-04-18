@@ -206,6 +206,7 @@ def build_race_stints(
     *,
     driver_number: str,
     stints_for_session: list[SessionStint],
+    driver_lap_count: int | None = None,
 ) -> list[RaceStint]:
     """Turn this driver's ``SessionStint`` records into lap-indexed ``RaceStint``s.
 
@@ -213,6 +214,12 @@ def build_race_stints(
     Zero-lap stints are skipped (they represent in-progress states the feed
     sometimes emits at pit exit/entry). Output is sorted by ``stint_idx`` and
     stints are laid end-to-end: stint N starts at the lap after stint N-1 ends.
+
+    If driver_lap_count is provided (from TimingData.NumberOfLaps) and
+    exceeds the sum of per-stint laps, the last stint is extended by the
+    delta. This reconciles TyreStintSeries underreporting (the feed can
+    stop emitting updates mid-session, most commonly right after a pit
+    stop).
     """
     from f1.models import RaceStint  # local import to keep inventory.py model-light
 
@@ -235,4 +242,20 @@ def build_race_stints(
             )
         )
         next_start = end + 1
+
+    # Reconcile against authoritative TimingData lap count.
+    if result and driver_lap_count is not None:
+        total_stint_laps = sum(s.laps for s in result)
+        gap = driver_lap_count - total_stint_laps
+        if gap > 0:
+            last = result[-1]
+            result[-1] = RaceStint(
+                stint_idx=last.stint_idx,
+                compound=last.compound,
+                start_lap=last.start_lap,
+                end_lap=last.end_lap + gap,
+                laps=last.laps + gap,
+                new=last.new,
+            )
+
     return result

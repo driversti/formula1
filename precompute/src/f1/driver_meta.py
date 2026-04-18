@@ -81,6 +81,23 @@ def _to_int_optional(value: object) -> int | None:
         return None
 
 
+def extract_lap_counts(
+    timing_data_state: dict[str, object],
+) -> dict[str, int]:
+    """Read the final NumberOfLaps per driver from a reduced TimingData state."""
+    lines = timing_data_state.get("Lines")
+    if not isinstance(lines, dict):
+        return {}
+    result: dict[str, int] = {}
+    for racing_number, raw in lines.items():
+        if not isinstance(raw, dict):
+            continue
+        lap_count = _to_int_optional(raw.get("NumberOfLaps"))
+        if lap_count is not None and lap_count >= 0:
+            result[str(racing_number)] = lap_count
+    return result
+
+
 def extract_final_positions_and_retirements(
     timing_data_state: dict[str, object],
 ) -> dict[str, tuple[int | None, bool]]:
