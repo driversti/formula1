@@ -12,6 +12,7 @@ from f1.driver_meta import DriverMeta, build_driver_meta, extract_grid_positions
 from f1.inventory import (
     SessionStint,
     build_inventory,
+    build_race_stints,
     extract_session_stints,
 )
 from f1.models import (
@@ -162,6 +163,14 @@ def build_race_manifest(
             driver_tla=meta.tla,
             stints_by_session=stints_by_session,
         )
+        race_stints = build_race_stints(
+            driver_number=racing_number,
+            stints_for_session=stints_by_session.get("R", []),
+        )
+        sprint_stints = build_race_stints(
+            driver_number=racing_number,
+            stints_for_session=stints_by_session.get("S", []),
+        )
         drivers.append(
             DriverInventory(
                 racing_number=meta.racing_number,
@@ -171,6 +180,8 @@ def build_race_manifest(
                 team_color=meta.team_color,
                 grid_position=grid_positions.get(racing_number),
                 sets=sets,
+                race_stints=race_stints,
+                sprint_stints=sprint_stints,
             )
         )
     drivers.sort(key=lambda d: d.tla)

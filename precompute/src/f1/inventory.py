@@ -2,8 +2,12 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
 from f1.models import Compound, SessionKey, TyreSet
+
+if TYPE_CHECKING:
+    from f1.models import RaceStint
 
 _SESSION_ORDER: list[SessionKey] = ["FP1", "FP2", "FP3", "SQ", "S", "Q", "R"]
 
@@ -190,3 +194,38 @@ def build_inventory(
             )
 
     return sets
+
+
+def build_race_stints(
+    *,
+    driver_number: str,
+    stints_for_session: list[SessionStint],
+) -> list[RaceStint]:
+    """Turn this driver's ``SessionStint`` records into lap-indexed ``RaceStint``s.
+
+    ``stints_for_session`` is all stints for this driver in the session.
+    Zero-lap stints are skipped (they represent in-progress states the feed
+    sometimes emits at pit exit/entry). Output is sorted by ``stint_idx`` and
+    stints are laid end-to-end: stint N starts at the lap after stint N-1 ends.
+    """
+    from f1.models import RaceStint  # local import to keep inventory.py model-light
+
+    mine = [s for s in stints_for_session if s.driver_number == driver_number and s.total_laps > 0]
+    mine.sort(key=lambda s: s.stint_idx)
+
+    result: list[RaceStint] = []
+    next_start = 1
+    for s in mine:
+        end = next_start + s.total_laps - 1
+        result.append(
+            RaceStint(
+                stint_idx=s.stint_idx,
+                compound=s.compound,
+                start_lap=next_start,
+                end_lap=end,
+                laps=s.total_laps,
+                new=s.new_when_out,
+            )
+        )
+        next_start = end + 1
+    return result

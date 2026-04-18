@@ -17,6 +17,15 @@ const TyreSetSchema = z.object({
   last_seen_session: SessionKeySchema,
 });
 
+const RaceStintSchema = z.object({
+  stint_idx: z.number().int().min(0),
+  compound: z.enum(["SOFT", "MEDIUM", "HARD", "INTERMEDIATE", "WET"]),
+  start_lap: z.number().int().min(1),
+  end_lap: z.number().int().min(1),
+  laps: z.number().int().min(1),
+  new: z.boolean(),
+});
+
 const DriverInventorySchema = z.object({
   racing_number: z.string().min(1),
   tla: z.string().min(3).max(3),
@@ -25,6 +34,8 @@ const DriverInventorySchema = z.object({
   team_color: z.string().regex(/^#[0-9A-Fa-f]{6}$/),
   grid_position: z.union([z.number().int().min(1).max(22), z.null()]).default(null),
   sets: z.array(TyreSetSchema),
+  race_stints: z.array(RaceStintSchema).default([]),
+  sprint_stints: z.array(RaceStintSchema).default([]),
 });
 
 const RaceSchema = z.object({

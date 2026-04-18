@@ -28,6 +28,17 @@ class TyreSet(_StrictModel):
     last_seen_session: SessionKey
 
 
+class RaceStint(_StrictModel):
+    """One stint inside a race or sprint session, in lap-index space."""
+
+    stint_idx: int = Field(ge=0, description="0-based stint index within the session")
+    compound: Compound
+    start_lap: int = Field(ge=1, description="Lap the driver exited the pit on (1 for first stint)")
+    end_lap: int = Field(ge=1, description="Last lap on this set (inclusive)")
+    laps: int = Field(ge=1, description="end_lap - start_lap + 1")
+    new: bool = Field(description="True if the set was mounted new for this stint")
+
+
 class DriverInventory(_StrictModel):
     """All tyre sets known to belong to a single driver."""
 
@@ -38,6 +49,8 @@ class DriverInventory(_StrictModel):
     team_color: str = Field(..., pattern=r"^#[0-9A-Fa-f]{6}$")
     grid_position: int | None = Field(default=None, ge=1, le=22)
     sets: list[TyreSet]
+    race_stints: list[RaceStint] = Field(default_factory=list)
+    sprint_stints: list[RaceStint] = Field(default_factory=list)
 
     @property
     def sets_by_compound(self) -> dict[Compound, list[TyreSet]]:

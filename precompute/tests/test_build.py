@@ -279,3 +279,35 @@ def test_main_unknown_slug_without_overrides_errors(
 
     with pytest.raises(SystemExit):
         build_mod.main(["--slug", "imaginary-gp"])
+
+
+def test_build_race_manifest_populates_race_stints(mini_race_root: Path) -> None:
+    manifest = build_race_manifest(
+        data_root=mini_race_root,
+        race_dir="2026/2026-03-08_Australian_Grand_Prix",
+        season=2026,
+        round_number=1,
+        slug="australia-2026",
+    )
+    ver = next(d for d in manifest.race.drivers if d.tla == "VER")
+    assert len(ver.race_stints) > 0
+    assert ver.sprint_stints == []  # Melbourne is not a sprint weekend
+    # Race stints should be continuous.
+    if len(ver.race_stints) > 1:
+        for prev, curr in zip(ver.race_stints, ver.race_stints[1:], strict=False):
+            assert curr.start_lap == prev.end_lap + 1
+
+
+def test_build_race_manifest_populates_sprint_stints_on_sprint_weekend(
+    mini_race_root: Path,
+) -> None:
+    manifest = build_race_manifest(
+        data_root=mini_race_root,
+        race_dir="2026/2026-03-15_Chinese_Grand_Prix",
+        season=2026,
+        round_number=2,
+        slug="china-2026",
+    )
+    ver = next(d for d in manifest.race.drivers if d.tla == "VER")
+    assert len(ver.sprint_stints) > 0
+    assert len(ver.race_stints) > 0
