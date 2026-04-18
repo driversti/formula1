@@ -50,30 +50,30 @@ const HAM = makeDriver({
 
 describe("<StrategyChart />", () => {
   it("renders one row per driver with race_stints", () => {
-    render(<StrategyChart drivers={[VER, HAM, LEC_DNF]} sessionKey="R" totalLaps={57} />);
+    render(<StrategyChart drivers={[VER, HAM, LEC_DNF]} sessionKey="R" totalLaps={57} statusBands={[]} />);
     expect(screen.getAllByTestId("strategy-row")).toHaveLength(3);
   });
 
   it("sorts finishers ahead of DNFs and by final_position asc", () => {
-    render(<StrategyChart drivers={[LEC_DNF, HAM, VER]} sessionKey="R" totalLaps={57} />);
+    render(<StrategyChart drivers={[LEC_DNF, HAM, VER]} sessionKey="R" totalLaps={57} statusBands={[]} />);
     const rows = screen.getAllByTestId("strategy-row");
     expect(rows.map((r) => r.getAttribute("data-tla"))).toEqual(["VER", "HAM", "LEC"]);
   });
 
   it("skips drivers with no stints for the requested session", () => {
     const GAS = makeDriver({ tla: "GAS", final_position: 8, race_stints: [], sprint_stints: [] });
-    render(<StrategyChart drivers={[VER, GAS]} sessionKey="R" totalLaps={57} />);
+    render(<StrategyChart drivers={[VER, GAS]} sessionKey="R" totalLaps={57} statusBands={[]} />);
     const rows = screen.getAllByTestId("strategy-row");
     expect(rows.map((r) => r.getAttribute("data-tla"))).toEqual(["VER"]);
   });
 
   it("renders a RET trailer for DNF drivers", () => {
-    render(<StrategyChart drivers={[VER, LEC_DNF]} sessionKey="R" totalLaps={57} />);
+    render(<StrategyChart drivers={[VER, LEC_DNF]} sessionKey="R" totalLaps={57} statusBands={[]} />);
     expect(screen.getByText("RET L12")).toBeInTheDocument();
   });
 
   it("renders a finishing position trailer for finishers", () => {
-    render(<StrategyChart drivers={[VER, HAM]} sessionKey="R" totalLaps={57} />);
+    render(<StrategyChart drivers={[VER, HAM]} sessionKey="R" totalLaps={57} statusBands={[]} />);
     expect(screen.getByText("P1")).toBeInTheDocument();
     expect(screen.getByText("P2")).toBeInTheDocument();
   });
@@ -87,7 +87,7 @@ describe("<StrategyChart />", () => {
         { stint_idx: 0, compound: "MEDIUM", start_lap: 1, end_lap: 19, laps: 19, new: true },
       ],
     });
-    render(<StrategyChart drivers={[sprinter]} sessionKey="S" totalLaps={19} />);
+    render(<StrategyChart drivers={[sprinter]} sessionKey="S" totalLaps={19} statusBands={[]} />);
     expect(screen.getAllByTestId("strategy-row")).toHaveLength(1);
   });
 
@@ -104,14 +104,14 @@ describe("<StrategyChart />", () => {
         { stint_idx: 0, compound: "MEDIUM", start_lap: 1, end_lap: 18, laps: 18, new: true },
       ],
     });
-    render(<StrategyChart drivers={[driver]} sessionKey="S" totalLaps={18} />);
+    render(<StrategyChart drivers={[driver]} sessionKey="S" totalLaps={18} statusBands={[]} />);
     expect(screen.getByText("P1")).toBeInTheDocument();
     expect(screen.queryByText(/RET L48/)).not.toBeInTheDocument();
   });
 
   it("shows tooltip content on segment hover", () => {
     const { container } = render(
-      <StrategyChart drivers={[VER, LEC_DNF]} sessionKey="R" totalLaps={57} />
+      <StrategyChart drivers={[VER, LEC_DNF]} sessionKey="R" totalLaps={57} statusBands={[]} />
     );
 
     // VER has two stints; find the first stint-segment rect in the VER row.

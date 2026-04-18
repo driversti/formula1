@@ -8,6 +8,23 @@ import { useTooltip, TooltipWithBounds, defaultStyles } from "@visx/tooltip";
 
 type Compound = "SOFT" | "MEDIUM" | "HARD" | "INTERMEDIATE" | "WET";
 
+type TrackStatusCode = "Yellow" | "SCDeployed" | "VSCDeployed" | "Red";
+
+type StatusBand = {
+  status: TrackStatusCode;
+  start_lap: number;
+  end_lap: number;
+};
+
+// STATUS_LABEL is pre-declared for Task 14 (tooltip wiring) — not yet used.
+const STATUS_LABEL: Record<TrackStatusCode, string> = {
+  Yellow: "Yellow",
+  SCDeployed: "Safety Car",
+  VSCDeployed: "Virtual Safety Car",
+  Red: "Red Flag",
+};
+void STATUS_LABEL;
+
 type RaceStint = {
   stint_idx: number;
   compound: Compound;
@@ -37,6 +54,7 @@ type Props = {
   drivers: Driver[];
   sessionKey: "R" | "S";
   totalLaps: number;
+  statusBands: StatusBand[];
 };
 
 const ROW_H = 34;
@@ -107,7 +125,8 @@ const TOOLTIP_STYLES: CSSProperties = {
   lineHeight: 1.6,
 };
 
-export function StrategyChart({ drivers, sessionKey, totalLaps }: Props) {
+export function StrategyChart({ drivers, sessionKey, totalLaps, statusBands }: Props) {
+  void statusBands;
   const rows = prepareRows(drivers, sessionKey);
   const {
     tooltipData,
