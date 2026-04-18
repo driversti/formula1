@@ -103,7 +103,7 @@ def test_pass_a_matches_continuing_set_by_compound_and_laps() -> None:
 
     stints = {
         "FP1": [SessionStint("FP1", "1", 0, "SOFT", True, 0, 8)],
-        "FP2": [SessionStint("FP2", "1", 0, "SOFT", False, 8, 2)],
+        "FP2": [SessionStint("FP2", "1", 0, "SOFT", False, 8, 10)],
     }
     sets = build_inventory(driver_number="1", driver_tla="VER", stints_by_session=stints)
     assert len(sets) == 1
@@ -133,7 +133,7 @@ def test_pass_a_unmatched_used_stint_creates_set_with_start_laps() -> None:
 
     # Used stint with no earlier history — treat as best-effort new set.
     stints = {
-        "FP2": [SessionStint("FP2", "1", 0, "HARD", False, 4, 3)],
+        "FP2": [SessionStint("FP2", "1", 0, "HARD", False, 4, 7)],
     }
     sets = build_inventory(driver_number="1", driver_tla="VER", stints_by_session=stints)
     assert len(sets) == 1
@@ -177,7 +177,7 @@ def test_pass_b_does_not_mutate_existing_set_laps() -> None:
     # Pre-race laps must remain 12.
     stints = {
         "FP2": [SessionStint("FP2", "1", 0, "HARD", True, 0, 12)],
-        "R": [SessionStint("R", "1", 0, "HARD", False, 12, 33)],
+        "R": [SessionStint("R", "1", 0, "HARD", False, 12, 45)],
     }
     sets = build_inventory(driver_number="1", driver_tla="VER", stints_by_session=stints)
     assert len(sets) == 1
@@ -191,7 +191,7 @@ def test_pass_b_used_set_first_seen_in_race_is_created_with_start_laps() -> None
     # Used HARD first appears in Race — something we missed earlier.
     # Include at pre-race state start_laps=8.
     stints = {
-        "R": [SessionStint("R", "1", 0, "HARD", False, 8, 25)],
+        "R": [SessionStint("R", "1", 0, "HARD", False, 8, 33)],
     }
     sets = build_inventory(driver_number="1", driver_tla="VER", stints_by_session=stints)
     assert len(sets) == 1
@@ -208,11 +208,11 @@ def test_full_weekend_example_verstappen() -> None:
             SessionStint("FP1", "1", 1, "MEDIUM", True, 0, 5),
         ],
         "FP2": [
-            SessionStint("FP2", "1", 0, "SOFT", False, 8, 2),
+            SessionStint("FP2", "1", 0, "SOFT", False, 8, 10),
             SessionStint("FP2", "1", 1, "HARD", True, 0, 12),
         ],
         "FP3": [
-            SessionStint("FP3", "1", 0, "MEDIUM", False, 5, 3),
+            SessionStint("FP3", "1", 0, "MEDIUM", False, 5, 8),
         ],
         "Q": [
             SessionStint("Q", "1", 0, "SOFT", True, 0, 3),
@@ -221,7 +221,7 @@ def test_full_weekend_example_verstappen() -> None:
         ],
         "R": [
             SessionStint("R", "1", 0, "MEDIUM", True, 0, 25),
-            SessionStint("R", "1", 1, "HARD", False, 12, 33),
+            SessionStint("R", "1", 1, "HARD", False, 12, 45),
         ],
     }
     sets = build_inventory(driver_number="1", driver_tla="VER", stints_by_session=stints)
@@ -243,7 +243,7 @@ def test_pass_a_includes_sprint_sessions_in_chronological_order() -> None:
         "FP1": [],
         "SQ": [SessionStint("SQ", "1", 0, "MEDIUM", True, 0, 2)],
         "S":  [SessionStint("S",  "1", 0, "HARD",   True, 0, 8)],
-        "Q":  [SessionStint("Q",  "1", 0, "MEDIUM", False, 2, 1)],
+        "Q":  [SessionStint("Q",  "1", 0, "MEDIUM", False, 2, 3)],
     }
     sets = build_inventory(driver_number="1", driver_tla="VER", stints_by_session=stints)
 

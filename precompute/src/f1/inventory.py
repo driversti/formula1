@@ -25,8 +25,14 @@ class SessionStint:
     total_laps: int
 
     @property
+    def stint_laps(self) -> int:
+        """Laps driven in this stint (= total wear now minus wear at stint start)."""
+        return max(0, self.total_laps - self.start_laps)
+
+    @property
     def end_laps(self) -> int:
-        return self.start_laps + self.total_laps
+        """Total tyre wear after this stint (alias for total_laps)."""
+        return self.total_laps
 
 
 def _to_bool(value: object) -> bool:
@@ -210,20 +216,21 @@ def build_race_stints(
     """
     from f1.models import RaceStint  # local import to keep inventory.py model-light
 
-    mine = [s for s in stints_for_session if s.driver_number == driver_number and s.total_laps > 0]
+    mine = [s for s in stints_for_session if s.driver_number == driver_number and s.stint_laps > 0]
     mine.sort(key=lambda s: s.stint_idx)
 
     result: list[RaceStint] = []
     next_start = 1
     for s in mine:
-        end = next_start + s.total_laps - 1
+        laps = s.stint_laps
+        end = next_start + laps - 1
         result.append(
             RaceStint(
                 stint_idx=s.stint_idx,
                 compound=s.compound,
                 start_lap=next_start,
                 end_lap=end,
-                laps=s.total_laps,
+                laps=laps,
                 new=s.new_when_out,
             )
         )
