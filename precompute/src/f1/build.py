@@ -224,6 +224,12 @@ FEATURED_RACES: tuple[FeaturedRace, ...] = (
         season=2026,
         round_number=2,
     ),
+    FeaturedRace(
+        slug="japan-2026",
+        race_dir="2026/2026-03-29_Japanese_Grand_Prix",
+        season=2026,
+        round_number=3,
+    ),
 )
 
 
