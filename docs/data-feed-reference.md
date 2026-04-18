@@ -908,3 +908,109 @@ Reduced state has two top-level keys, `Drivers` and `Teams`. Each entry carries 
 **Feeds these features** (current): none.
 
 **Could power:** post-race championship standings table; race-impact visualisation showing who gained or lost positions in the championship; win-probability or title-contention charts updated lap by lap.
+
+## Cross-feed opportunities
+
+Feature ideas that need two or more feeds. Each entry: a one-line pitch, the feeds required (with ✅ for CI-fetched and ❌ for full-archive-only), and one "verify first" note that flags an alignment question or data-shape caveat.
+
+**None of these is committed work.** This is a menu the user scans when deciding what to build next. Every entry has a caveat that must be answered before implementation starts.
+
+---
+
+### Sector-colour timing tower
+
+Display a live timing tower where each driver's sector splits are coloured purple (session best), green (personal best), or yellow (slower) — the classic broadcast look.
+
+**Feeds required.** `TimingData.jsonStream` ✅ + `TimingStats.jsonStream` ❌
+
+**Verify first.** `TimingStats.BestSectors.Position` is session rank (1 = fastest in session); the purple/green/yellow logic can key off that value directly, but `TimingStats` is not fetched in CI so this feature requires the full archive.
+
+---
+
+### Weather overlay on the race strategy chart
+
+Render a secondary axis below the race strategy chart showing track temperature and rainfall status across the race laps, letting viewers correlate tyre behaviour with ambient conditions.
+
+**Feeds required.** `WeatherData.jsonStream` ❌ + `TimingData.jsonStream` ✅
+
+**Verify first.** `WeatherData` emits one full snapshot per minute (wall-clock), while `TimingData` is event-driven per lap completion. Alignment is coarse (~1 min resolution); lap-to-timestamp mapping requires either `SessionData.Series` lap-boundary UTCs (also ❌) or approximation from session start time plus elapsed laps.
+
+---
+
+### Flag / SC / VSC / red-flag overlay on the race strategy chart
+
+Shade the strategy chart background in yellow/red and annotate Safety Car and VSC windows so viewers can immediately see how incidents shaped the race.
+
+**Feeds required.** `TrackStatus.jsonStream` ❌ + `SessionData.jsonStream` ❌ + `RaceControlMessages.jsonStream` ❌
+
+**Verify first.** `TrackStatus` gives machine-readable state transitions with session-relative timestamps; `SessionData.StatusSeries` gives the same transitions with UTC timestamps; `RaceControlMessages` provides the human-readable label (e.g. "SAFETY CAR DEPLOYED"). All three are ❌, so none is available in CI. Use `TrackStatus` as the authoritative state source and `RaceControlMessages` for the annotation text — they may arrive out of order by a few seconds.
+
+---
+
+### Per-lap position trace chart
+
+Show every driver's on-track position (1–22) lap by lap, the classic "racing lines" visualization that reveals overtakes, Safety Car bunching, and strategy divergence.
+
+**Feeds required.** `LapSeries.jsonStream` ❌ + `TimingData.jsonStream` ✅ + `LapCount.jsonStream` ❌
+
+**Verify first.** `LapSeries.LapPosition` values are strings, not integers. The bootstrap event emits a JSON array (lap 1 maps to index `"0"` after list→dict promotion), creating an off-by-one that callers must handle. The lap-1 figure reflects on-track order after race start, not grid order — driver 12 (race winner, pole) appears at position `"6"` on lap 1.
+
+---
+
+### Pit-stop timeline annotations on the race strategy chart
+
+Enrich the existing strategy chart with explicit pit-stop duration labels: show each stop's lap number and how many seconds it took.
+
+**Feeds required.** `PitLaneTimeCollection.jsonStream` ❌ + `TyreStintSeries.jsonStream` ✅ + `TimingData.jsonStream` ✅
+
+**Verify first.** `PitLaneTimeCollection` reduced state is always `{}` — the raw event stream must be walked to harvest insert events before they are `_deleted` on pit exit. Join the collected events to `TyreStintSeries` stints on `(driver_number, lap)` using the `Lap` field from `PitLaneTimeCollection` vs. `TotalLaps` at stint boundary in `TyreStintSeries`.
+
+---
+
+### Pit-stop duration histogram and undercut/overcut analysis
+
+Compare each driver's pit-stop durations across the field; pair with lap times before and after the stop to identify successful undercuts and failed overcuts.
+
+**Feeds required.** `PitLaneTimeCollection.jsonStream` ❌ + `TimingData.jsonStream` ✅
+
+**Verify first.** Same `_deleted` caveat as above — `PitLaneTimeCollection` final state is `{}`; the event stream must be consumed live, collecting each insert before deletion. `Duration` and `Lap` are strings; parse before arithmetic. Driver 23 in Japan 2026 logged 5 stops on laps 45–49 (penalty visits with `TyresNotChanged: "1"`) — penalty stops should be filtered or flagged separately.
+
+---
+
+### Championship-impact visualization
+
+Show, for each race finisher, how many championship points and positions they gained or lost relative to pre-race standings — making it immediately clear who the race mattered most to.
+
+**Feeds required.** `ChampionshipPrediction.jsonStream` ❌ + `DriverList.jsonStream` ✅
+
+**Verify first.** `ChampionshipPrediction` emits partial diffs after the first full-baseline event; the dual-event initialization (empty dict immediately followed by full baseline) must be handled before merging diffs, or the baseline is silently dropped. The feed updates irregularly (~67 s apart on average) so mid-race snapshots are coarse.
+
+---
+
+### Penalty audit page
+
+List every investigation, penalty, and lap deletion in chronological order, annotated with the affected driver's name and the lap time that was (or was not) deleted.
+
+**Feeds required.** `RaceControlMessages.jsonStream` ❌ + `TimingData.jsonStream` ✅ + `DriverList.jsonStream` ✅
+
+**Verify first.** Penalties and investigations appear as free-text in `Category: "Other"` — there is no structured penalty field or dedicated penalty category. Extracting the racing number and penalty type requires text parsing (regex on strings like `"TURN 13 INCIDENT INVOLVING CARS 43 (COL) AND 87 (BEA) NOTED"`). False-positive rate from text parsing is unknown across multiple sessions.
+
+---
+
+### Throttle and brake trace per driver per lap
+
+Render a corner-by-corner throttle/brake trace for a selected driver on a selected lap, overlaid against their lap time — the kind of telemetry analysis previously available only in professional tools.
+
+**Feeds required.** `CarData.z.jsonStream` ❌ + `TimingData.jsonStream` ✅
+
+**Verify first.** `parse_stream` does NOT work on `.z.` files — the outer line format is `HH:MM:SS.mmm"<base64>"` (a JSON string), not a JSON object; `parse_stream` silently returns 0 events. A custom outer-loop decoder is required before decompression. Lap boundary alignment requires joining `CarData` UTC timestamps with lap-boundary UTCs derivable from `SessionData.Series` (also ❌). Sentinel value 104 on both throttle and brake channels simultaneously indicates stale/frozen telemetry — filter before rendering.
+
+---
+
+### Animated track map with all 22 cars
+
+Play back the full race as an animated top-down track map, with each car dot coloured by team, pausing on Safety Car periods and showing overtakes live.
+
+**Feeds required.** `Position.z.jsonStream` ❌ + `DriverList.jsonStream` ✅ + `TrackStatus.jsonStream` ❌
+
+**Verify first.** `Position` coordinates are in a proprietary track-map unit system (not meters or lat/lon); per-circuit normalization is required before rendering. `parse_stream` does not work on this file (same compressed outer format as `CarData.z`). `OffTrack` entries carry `X=Y=Z=0` and must be filtered to avoid spurious origin spikes. The coordinate-space bounding box implies ~0.1–0.15 m/unit for XY but a different ratio for Z (elevation), so Z cannot be used for elevation rendering without independent calibration.
