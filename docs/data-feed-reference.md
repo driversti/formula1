@@ -58,9 +58,9 @@ Every per-session feed F1 publishes, at a glance. **Fetched** means the file is 
 | `DriverList.jsonStream` | Driver identity: TLA, number, name, team, team colour. | ✅ | deep |
 | `WeatherData.jsonStream` | Air/track temperature, humidity, wind speed/direction, rainfall. | ❌ | medium |
 | `Heartbeat.jsonStream` | Feed connection keep-alive. | ❌ | medium |
-| `TeamRadio.jsonStream` | Team radio clip metadata (driver, URL, timestamp). | ❌ | _TBD — Phase 2 group 8_ |
-| `AudioStreams.jsonStream` | Available audio stream URLs (commentary feeds). | ❌ | _TBD — Phase 2 group 8_ |
-| `ContentStreams.jsonStream` | Available video/content stream URLs. | ❌ | _TBD — Phase 2 group 8_ |
+| `TeamRadio.jsonStream` | Team radio clip metadata (driver, URL, timestamp). | ❌ | medium |
+| `AudioStreams.jsonStream` | Available audio stream URLs (commentary feeds). | ❌ | medium |
+| `ContentStreams.jsonStream` | Available video/content stream URLs. | ❌ | medium |
 | `ChampionshipPrediction.jsonStream` | Live championship-standings prediction. | ❌ | _TBD — Phase 2 group 9_ |
 
 TBD placeholders in this table are intentional: they get filled in by the Phase 2 task that investigates each group, which keeps each commit self-contained.
@@ -792,3 +792,86 @@ The `timestamp_ms` values parsed by `f1.parse` do not advance uniformly (407 dis
 **Feeds these features** (current): none.
 
 **Could power** (speculative): detecting whether a live session is still broadcasting (presence heartbeat), or computing exact session wall-clock start/end from the UTC payload.
+
+## Audio / video
+
+Feeds in this group describe media streams and team-radio captures. None is currently fetched in CI. These are the least investigated in this reference — they're unlikely to power features in this static-site project (no backend to proxy URLs), but documented for completeness.
+
+### `TeamRadio.jsonStream`
+
+**Fetched by CI:** ❌ no
+**Compressed:** no
+**Investigation depth:** medium
+
+**Note:** this file is **absent from the Japan 2026 Race** session (26 of 27 expected files present). The example below comes from the **Mexico City 2025 Race** session (`seasons/2025/2025-10-26_Mexico_City_Grand_Prix/2025-10-26_Race/`), which contains a complete copy.
+
+The stream carries per-clip metadata for team radio recordings. The **first event** uses a JSON array for `Captures` (batch upload of multiple clips); **all subsequent events** use a dict keyed by a monotonically-increasing integer index (one new clip per event). Each capture has three fields:
+
+```json
+{
+  "Captures": {
+    "3": {
+      "Utc": "2025-10-26T19:23:36.176Z",
+      "RacingNumber": "1",
+      "Path": "TeamRadio/MAXVER01_1_20251026_132318.mp3"
+    }
+  }
+}
+```
+
+`Path` is a relative path under the session's base URL on `livetiming.formula1.com/static/`. The full audio file URL would be constructed as `<session-base>/<Path>`. No `Duration` field is present. The Mexico 2025 Race produced 27 events covering 27 distinct clips across many drivers.
+
+**Feeds these features** (current): none.
+
+---
+
+### `AudioStreams.jsonStream`
+
+**Fetched by CI:** ❌ no
+**Compressed:** no
+**Investigation depth:** medium
+
+A single-event manifest listing the live audio commentary streams available for the session. The Japan 2026 Race produced exactly **1 event** at session-relative timestamp 55:07, carrying a `Streams` array:
+
+```json
+{
+  "Streams": [
+    {
+      "Name": "Live coverage (EN)",
+      "Language": "en",
+      "Uri": "https://rdio.formula1.com/rdio-prod/livetimingts/hls.m3u8",
+      "Path": "Live_coverage_(EN)-en/stream.m3u8",
+      "Utc": "2026-03-29T05:05:24.688Z"
+    }
+  ]
+}
+```
+
+`Uri` is the live HLS stream URL served from `rdio.formula1.com` (or CloudFront for older sessions). `Path` is a session-relative mirror path. Only English commentary appeared in both 2025 and 2026 sessions inspected — the feed likely lists one entry per available language. The stream URL is authenticated/ephemeral; it does not persist post-race.
+
+**Feeds these features** (current): none.
+
+---
+
+### `ContentStreams.jsonStream`
+
+**Fetched by CI:** ❌ no
+**Compressed:** no
+**Investigation depth:** medium
+
+A two-event manifest listing video and audio content streams. The Japan 2026 Race produced **2 events** at the same timestamp (55:07), one per stream type. The first event uses an array for `Streams`; the second uses a dict keyed by integer index — the same dual-format pattern seen in `TeamRadio`.
+
+```json
+{ "Streams": [{ "Type": "Commentary", "Name": "monterosa", "Language": "en",
+    "Uri": "https://interactioncloud.formula1.com/?h=cdn.monterosa.cloud&...",
+    "Utc": "0001-01-01T00:00:00" }] }
+
+{ "Streams": { "1": { "Type": "Audio", "Name": "Live coverage (EN)", "Language": "en",
+    "Uri": "https://rdio.formula1.com/rdio-prod/livetimingts/hls.m3u8",
+    "Path": "Live_coverage_(EN)-en/stream.m3u8",
+    "Utc": "2026-03-29T05:05:24.688Z" }}}
+```
+
+Two stream types appear: `"Commentary"` (a Monterosa interactive cloud widget URL, `Utc` is the .NET default `0001-01-01` indicating no live timestamp) and `"Audio"` (the same HLS URL as in `AudioStreams`). The `Uri` values are ephemeral authenticated URLs; no onboard-camera or video-highlight entries were observed in the sessions inspected.
+
+**Feeds these features** (current): none.
