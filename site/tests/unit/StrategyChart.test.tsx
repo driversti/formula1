@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, fireEvent } from "@testing-library/react";
 import { StrategyChart } from "../../src/components/StrategyChart";
 
 type Driver = Parameters<typeof StrategyChart>[0]["drivers"][number];
@@ -87,5 +87,32 @@ describe("<StrategyChart />", () => {
     });
     render(<StrategyChart drivers={[sprinter]} sessionKey="S" totalLaps={19} />);
     expect(screen.getAllByTestId("strategy-row")).toHaveLength(1);
+  });
+
+  it("shows tooltip content on segment hover", () => {
+    const { container } = render(
+      <StrategyChart drivers={[VER, LEC_DNF]} sessionKey="R" totalLaps={57} />
+    );
+
+    // VER has two stints; find the first stint-segment rect in the VER row.
+    // Rows are sorted by final_position (VER=1 first), so the first
+    // stint-segment in the DOM belongs to VER stint 0 (MEDIUM, laps 1-18).
+    const segments = container.querySelectorAll<SVGRectElement>('[data-testid="stint-segment"]');
+    expect(segments.length).toBeGreaterThan(0);
+    const firstSegment = segments[0];
+
+    // Hover over the first segment
+    fireEvent.mouseMove(firstSegment, { clientX: 100, clientY: 50 });
+
+    // Tooltip should show TLA in the stint header line (e.g. "VER · Stint 1 / 2")
+    expect(screen.getByText(/VER · Stint 1 \/ 2/)).toBeInTheDocument();
+    // Compound line (e.g. "MEDIUM · laps 1–18 (18 laps)")
+    expect(screen.getByText(/MEDIUM · laps 1/)).toBeInTheDocument();
+    // New/used set line
+    expect(screen.getByText("New set")).toBeInTheDocument();
+
+    // Mouse leave should hide the tooltip
+    fireEvent.mouseLeave(firstSegment);
+    expect(screen.queryByText(/MEDIUM · laps 1/)).not.toBeInTheDocument();
   });
 });

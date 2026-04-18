@@ -109,7 +109,7 @@ describe("buildTrail", () => {
       "Home",
       "2026",
       expect.any(String), // race label
-      "Strategy",
+      "Race Strategy",
     ]);
     expect(trail[trail.length - 1].current).toBe(true);
     expect(trail[trail.length - 1].href).toBe("/race/australia-2026/strategy");

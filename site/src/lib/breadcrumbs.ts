@@ -54,7 +54,7 @@ export function buildTrail(pathname: string, schedule: Season[]): Crumb[] {
     if (leaf === "tyres") {
       trail.push({ label: "Tyres", href: `/race/${slug}/tyres`, current: true });
     } else if (leaf === "strategy") {
-      trail.push({ label: "Strategy", href: `/race/${slug}/strategy`, current: true });
+      trail.push({ label: "Race Strategy", href: `/race/${slug}/strategy`, current: true });
     } else if (leaf?.startsWith("driver/")) {
       const tla = leaf.slice("driver/".length).toUpperCase();
       trail.push({

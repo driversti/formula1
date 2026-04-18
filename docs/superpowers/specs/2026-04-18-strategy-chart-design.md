@@ -278,6 +278,15 @@ Checkpoint after each step: green CI + user sign-off before the next.
 - Shareable deep link to a session tab (no URL param in v1).
 - FP / Q stint visualization (not meaningful under the same chart shape).
 - Mobile-specific tap interactions beyond tooltip-on-hover.
+- **Sprint-session finishing order and DNF flags**: `final_position` and
+  `dnf_at_lap` are derived only from the Race session's `TimingData` and
+  therefore describe Race outcomes. On sprint weekends, the Sprint tab
+  uses these Race-derived values for sort order and trailer display,
+  which is correct for drivers whose Sprint and Race outcomes happen to
+  agree but ambiguous when they differ (e.g. a Sprint winner who retires
+  from the Race). Resolving this requires either reading the Sprint
+  session's `TimingData` independently or mirroring those fields per
+  session. A clean follow-up; not blocking v1.
 
 Any of these are clean follow-ups; none is blocked by v1 decisions.
 
