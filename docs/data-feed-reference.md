@@ -50,8 +50,8 @@ Every per-session feed F1 publishes, at a glance. **Fetched** means the file is 
 | `TyreStintSeries.jsonStream` | Per-driver tyre stint series (compound, new/used, lap counters). | ✅ | deep |
 | `CurrentTyres.jsonStream` | Currently-fitted tyre per driver (compound + new/used snapshot, updates on pit exit). | ❌ | medium |
 | `PitLaneTimeCollection.jsonStream` | Per-pit-stop duration and lap number; insert/delete pair per stop, final state always empty. | ❌ | medium |
-| `CarData.z.jsonStream` | Compressed per-car telemetry (throttle, brake, RPM, gear, speed, DRS). | ❌ | _TBD — Phase 2 group 4_ |
-| `Position.z.jsonStream` | Compressed per-car XYZ positions on track. | ❌ | _TBD — Phase 2 group 4_ |
+| `CarData.z.jsonStream` | Compressed per-car telemetry (throttle, brake, RPM, gear, speed). | ❌ | medium |
+| `Position.z.jsonStream` | Compressed per-car XYZ positions on track. | ❌ | medium |
 | `RaceControlMessages.jsonStream` | Race Control messages: flags, investigations, penalties. | ❌ | _TBD — Phase 2 group 5_ |
 | `TrackStatus.jsonStream` | Current track status code (all-clear, yellow, SC, VSC, red). | ❌ | _TBD — Phase 2 group 5_ |
 | `TlaRcm.jsonStream` | Per-driver abbreviated race-control messages (TLA-indexed). | ❌ | _TBD — Phase 2 group 5_ |
@@ -502,3 +502,88 @@ Feeds in this group describe per-driver tyre history and pit-lane activity. One 
 **Feeds these features** (current): none.
 
 **Could power** (speculative): pit-stop-duration bar chart, undercut/overcut analysis (pair with `TyreStintSeries` stint laps and `TimingData` lap times), pit-stop heat map across the field.
+
+## Telemetry
+
+High-rate per-car streams. Both feeds are compressed (`.z.jsonStream`) — each event payload is a base64-encoded zlib-deflated JSON blob; see the Stream format primer for the decode recipe. Neither is currently fetched in CI.
+
+### `CarData.z.jsonStream`
+
+**Fetched by CI:** ❌ no
+**Compressed:** yes (base64 + zlib; `zlib.decompress(base64.b64decode(blob), -zlib.MAX_WBITS)`)
+**Investigation depth:** medium — payload decoded and sampled
+
+**Summary.** The outer `.jsonStream` lines do not follow the standard JSON-patch format; `parse_stream` returns 0 events for this file. Each line is `HH:MM:SS.mmm"<base64-blob>"` where the blob decompresses to a JSON object with a single `Entries` key. `Entries` is a list of 1–5 telemetry snapshots, each carrying a `Utc` timestamp and a `Cars` dict keyed by racing number. Every car entry contains a `Channels` dict with integer string keys. Across 9,315 outer lines, the file contains 34,761 inner snapshots covering a session spanning ~156 minutes, yielding ~3.7 inner snapshots per second across the full field (approximately 4 Hz). All 22 racing numbers appear in every snapshot.
+
+**Channel key mapping** (confirmed by full file scan — only these five keys are present):
+
+| Channel | Signal | Range (observed) |
+|---------|--------|-----------------|
+| `"0"` | RPM | 0–13,000 |
+| `"2"` | Speed (km/h) | 0–341 |
+| `"3"` | Gear (0 = neutral) | 0–8 |
+| `"4"` | Throttle (%) | 0–100 |
+| `"5"` | Brake (0 = none, 100 = applied) | 0 / 100 |
+
+Channel `"1"` (DRS) is **absent** from this dataset; no DRS signal is present in the Japan 2026 Race archive.
+
+**Decoded example event** (outer line ts `01:08:41.907`, one inner snapshot, two cars shown):
+```json
+{
+  "Entries": [
+    {
+      "Utc": "2026-03-29T05:18:58.4345718Z",
+      "Cars": {
+        "1":  { "Channels": { "0": 11320, "2": 272, "3": 8, "4":   0, "5": 100 } },
+        "3":  { "Channels": { "0": 10825, "2": 302, "3": 6, "4": 100, "5":   0 } }
+      }
+    }
+  ]
+}
+```
+
+**Known quirks.**
+- **Quirk #6 (compressed payload):** Payload is base64-encoded zlib-deflated JSON — decode with `zlib.decompress(base64.b64decode(blob), -zlib.MAX_WBITS)` (raw DEFLATE, no zlib header). See Stream format primer.
+- **`parse_stream` does not parse this file.** The line format is `HH:MM:SS.mmm"<base64>"` (a JSON string, not a JSON object). `parse_stream` discards these lines silently; callers must parse the outer format manually before decompressing.
+- **Sentinel value 104** appears simultaneously on both `"4"` (throttle) and `"5"` (brake) when the telemetry snapshot is frozen — i.e., the feed is repeating the last-known values with no fresh update. Treat any reading where both channels equal 104 as stale data.
+- **Multiple entries per outer event.** Each outer compressed blob bundles 1–5 inner snapshots. The per-snapshot `Utc` timestamps are the authoritative time base; the outer line's session-relative timestamp is the delivery time, not the measurement time.
+
+**Feeds these features** (current): none.
+
+**Could power** (speculative): lap-time-vs-telemetry overlay, throttle trace by lap or corner, brake-point marker on track map, engine RPM histogram.
+
+### `Position.z.jsonStream`
+
+**Fetched by CI:** ❌ no
+**Compressed:** yes (base64 + zlib; `zlib.decompress(base64.b64decode(blob), -zlib.MAX_WBITS)`)
+**Investigation depth:** medium — payload decoded and sampled
+
+**Summary.** Same outer line format as `CarData.z.jsonStream` (`parse_stream` also returns 0 events). Each blob decompresses to `{"Position": [...]}` where `Position` is a list of 1–5 snapshots. Each snapshot has a `Timestamp` (UTC string) and an `Entries` dict keyed by racing number. Every entry carries `Status` (`"OnTrack"` or `"OffTrack"`) and integer `X`, `Y`, `Z` coordinates. Across 9,322 outer lines the file holds 35,733 inner snapshots (~3.8 Hz). All 22 drivers appear in each snapshot; `OffTrack` entries have `X=Y=Z=0`.
+
+**Decoded example event** (outer line ts `01:07:01.038`, one inner snapshot, two cars shown):
+```json
+{
+  "Position": [
+    {
+      "Timestamp": "2026-03-29T05:17:17.6452505Z",
+      "Entries": {
+        "1":  { "Status": "OnTrack", "X":  3235, "Y": -2444, "Z": 673 },
+        "3":  { "Status": "OnTrack", "X":   252, "Y":   650, "Z": 809 }
+      }
+    }
+  ]
+}
+```
+
+**Coordinate space.** X ranges roughly −13,800 to +5,960; Y ranges roughly −7,000 to +3,100; Z ranges 0–945 (Japan 2026 Race). The unit is not officially documented. The XY bounding box of ~19,800 × 10,100 units is consistent with Suzuka's circuit footprint (~2.5 km × 1.5 km) if each unit is approximately 0.1–0.15 m, though the Z axis (elevation) yields a different ratio (~0.04 m/unit for Suzuka's ~40 m elevation change). Treat coordinates as relative positions normalized to a proprietary track-map grid; apply per-circuit normalization before rendering.
+
+**Known quirks.**
+- **Quirk #6 (compressed payload):** Payload is base64-encoded zlib-deflated JSON — decode with `zlib.decompress(base64.b64decode(blob), -zlib.MAX_WBITS)` (raw DEFLATE, no zlib header). See Stream format primer.
+- **`parse_stream` does not parse this file** — same reason as `CarData.z.jsonStream`: outer line payload is a JSON string, not a JSON object.
+- **Top-level key is `Position`, not `Entries`.** The decoded shape differs from `CarData`: `CarData` uses `{"Entries": [...]}` while `Position` uses `{"Position": [...]}`.
+- **`OffTrack` entries carry zeros.** When `Status` is `"OffTrack"`, X, Y, Z are all 0. Filter before rendering to avoid spurious origin spikes.
+- **Frozen-snapshot intervals.** Like `CarData`, consecutive snapshots sometimes repeat identical X/Y/Z values across several milliseconds, indicating a telemetry gap rather than a stationary car.
+
+**Feeds these features** (current): none.
+
+**Could power** (speculative): animated track-map with all 22 cars, on-track position visualization, overtake-detection heuristics (position crossings), safety-car bunching analysis.
