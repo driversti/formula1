@@ -14,7 +14,7 @@ raw mirror        Python 3.13 pipeline    React 19 + Vite + Tailwind
 
 - **`seasons/`** — mirror of `livetiming.formula1.com/static/`. `seasons/20xx/` is gitignored. CI and fresh clones only fetch the metadata for the **currently-featured race** via `seasons/fetch_race.py`.
 - **`precompute/`** (package `f1-precompute`) — streams `.jsonStream` files into typed events, reduces to per-driver state, derives tyre inventory, and emits one JSON manifest per weekend to `precompute/out/`. Pipeline stages live in `src/f1/`: `parse.py` → `reduce.py` → `inventory.py` → `build.py`. The schema is exported via `f1.schema`.
-- **`site/`** — loads `public/data/<race>.json` at runtime and renders Home (driver grid) and Driver detail views with `@visx` charts. No backend.
+- **`site/`** — loads `public/data/<race>.json` at runtime and renders Home (driver grid), Driver detail, and Race Strategy (per-driver stint timeline) views with `@visx` charts. No backend.
 
 ## Currently-featured race(s)
 
@@ -47,7 +47,7 @@ Run everything from the repo root.
 | `make dev` | Fetch → precompute → genzod → copy manifest → `vite` dev server on :5173 |
 | `make build` | Full production build → `site/dist/` (what CI runs) |
 | `make precompute` | Just rebuild the race manifest |
-| `make fetch-race` | Pull the 4 metadata files for the featured race (idempotent) |
+| `make fetch-race` | Pull the 5 metadata files for each featured race (idempotent) |
 | `make genzod` | Regenerate Zod schemas from Pydantic JSON Schema |
 | `make test` | Python + site unit + Playwright E2E |
 | `make test-py` | `pytest` in `precompute/` (coverage gate: **85%**, set in `pyproject.toml`) |
