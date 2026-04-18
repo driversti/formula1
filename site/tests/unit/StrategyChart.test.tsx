@@ -135,4 +135,47 @@ describe("<StrategyChart />", () => {
     fireEvent.mouseLeave(firstSegment);
     expect(screen.queryByText(/MEDIUM · laps 1/)).not.toBeInTheDocument();
   });
+
+  it("renders no overlay elements when statusBands is empty", () => {
+    render(<StrategyChart drivers={[VER]} sessionKey="R" totalLaps={57} statusBands={[]} />);
+    expect(screen.queryByTestId("status-band")).toBeNull();
+    expect(screen.queryByTestId("status-strip-segment")).toBeNull();
+  });
+
+  it("renders one band and one strip segment per StatusBand", () => {
+    render(
+      <StrategyChart
+        drivers={[VER]}
+        sessionKey="R"
+        totalLaps={57}
+        statusBands={[
+          { status: "SCDeployed", start_lap: 10, end_lap: 14 },
+          { status: "Yellow",     start_lap: 20, end_lap: 22 },
+        ]}
+      />,
+    );
+    expect(screen.getAllByTestId("status-band")).toHaveLength(2);
+    expect(screen.getAllByTestId("status-strip-segment")).toHaveLength(2);
+    const bands = screen.getAllByTestId("status-band");
+    expect(bands[0].getAttribute("data-status")).toBe("SCDeployed");
+    expect(bands[1].getAttribute("data-status")).toBe("Yellow");
+  });
+
+  it("shows status tooltip content on band hover", () => {
+    const { container } = render(
+      <StrategyChart
+        drivers={[VER]}
+        sessionKey="R"
+        totalLaps={57}
+        statusBands={[{ status: "SCDeployed", start_lap: 10, end_lap: 14 }]}
+      />,
+    );
+    const band = container.querySelector<SVGRectElement>('[data-testid="status-band"]');
+    expect(band).not.toBeNull();
+    fireEvent.mouseMove(band!, { clientX: 100, clientY: 50 });
+    // Expected tooltip: "Safety Car · lap 10–14 (5 laps)"
+    expect(screen.getByText(/Safety Car · lap 10.*14 \(5 laps\)/)).toBeInTheDocument();
+    fireEvent.mouseLeave(band!);
+    expect(screen.queryByText(/Safety Car · lap 10.*14/)).not.toBeInTheDocument();
+  });
 });
