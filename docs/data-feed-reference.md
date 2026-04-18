@@ -44,7 +44,7 @@ Every per-session feed F1 publishes, at a glance. **Fetched** means the file is 
 | `TimingAppData.jsonStream` | Per-driver tyre sets, stints, pit-in/out state, grid position. | ✅ | deep |
 | `TimingStats.jsonStream` | Personal-best / session-best splits and speeds. | ❌ | medium |
 | `TopThree.jsonStream` | Top-3-on-track summary (position-order, gaps). | ❌ | medium |
-| `LapCount.jsonStream` | Current / total session laps. | ❌ | medium |
+| `LapCount.jsonStream` | Current / total session laps. | ✅ | medium |
 | `LapSeries.jsonStream` | Per-driver lap-by-lap position series. | ❌ | medium |
 | `ExtrapolatedClock.jsonStream` | Extrapolated session clock (remaining time, running flag). | ❌ | medium |
 | `TyreStintSeries.jsonStream` | Per-driver tyre stint series (compound, new/used, lap counters). | ✅ | deep |
@@ -53,7 +53,7 @@ Every per-session feed F1 publishes, at a glance. **Fetched** means the file is 
 | `CarData.z.jsonStream` | Compressed per-car telemetry (throttle, brake, RPM, gear, speed). | ❌ | medium |
 | `Position.z.jsonStream` | Compressed per-car XYZ positions on track. | ❌ | medium |
 | `RaceControlMessages.jsonStream` | Race Control messages: flags, investigations, penalties. | ❌ | medium |
-| `TrackStatus.jsonStream` | Current track status code (all-clear, yellow, SC, VSC, red). | ❌ | medium |
+| `TrackStatus.jsonStream` | Current track status code (all-clear, yellow, SC, VSC, red). | ✅ | deep |
 | `TlaRcm.jsonStream` | Plain-text mirror of RaceControlMessages — message text only, no metadata. | ❌ | medium |
 | `DriverList.jsonStream` | Driver identity: TLA, number, name, team, team colour. | ✅ | deep |
 | `WeatherData.jsonStream` | Air/track temperature, humidity, wind speed/direction, rainfall. | ❌ | medium |
@@ -78,13 +78,13 @@ Organized by the question you're likely to ask, not by filename. Feeds already f
 - **Per-driver tyre history (compound, new/used, laps)?** → `TyreStintSeries.jsonStream` ✅
 - **Currently-fitted tyre?** → `CurrentTyres.jsonStream` ❌
 - **Pit-stop timing?** → `PitLaneTimeCollection.jsonStream` ❌ + `TimingData` ✅
-- **Live track status (green/yellow/SC/VSC/red)?** → `TrackStatus.jsonStream` ❌
+- **Live track status (green/yellow/SC/VSC/red)?** → `TrackStatus.jsonStream` ✅
 - **Race Control decisions (investigations, penalties, flags)?** → `RaceControlMessages.jsonStream` ❌
 - **Weather (temp, wind, rainfall)?** → `WeatherData.jsonStream` ❌
 - **Per-car telemetry (throttle/brake/RPM/gear/DRS/speed)?** → `CarData.z.jsonStream` ❌ (compressed)
 - **Per-car position on track (XYZ)?** → `Position.z.jsonStream` ❌ (compressed)
 - **Team radio clips?** → `TeamRadio.jsonStream` ❌
-- **Current / total session laps?** → `LapCount.jsonStream` ❌
+- **Current / total session laps?** → `LapCount.jsonStream` ✅
 - **Championship predictions?** → `ChampionshipPrediction.jsonStream` ❌
 
 ## Session & weekend metadata
@@ -341,7 +341,7 @@ Reduced state (position 2, final):
 
 ### `LapCount.jsonStream`
 
-**Fetched by CI:** ❌ no
+**Fetched by CI:** ✅ yes
 **Compressed:** no
 **Investigation depth:** medium
 
@@ -357,7 +357,7 @@ Reduced state (position 2, final):
 - `TotalLaps` is only present in the first event; it is not repeated on subsequent updates.
 - Event count equals `TotalLaps` exactly (one event per lap). The stream ends as soon as `CurrentLap` reaches `TotalLaps`.
 
-**Feeds these features** (current): none. (The per-driver lap count comes from `TimingData.NumberOfLaps`, not this feed.)
+**Feeds these features** (current): Race Strategy chart status-band lap mapping (anchors TrackStatus transitions to lap numbers). See `precompute/src/f1/track_status.py`.
 
 **Could power** (speculative): progress bar / lap counter widget, axis labels on the race strategy chart.
 
@@ -651,9 +651,9 @@ Driver-specific flag (Lap 15):
 
 ### `TrackStatus.jsonStream`
 
-**Fetched by CI:** no
+**Fetched by CI:** ✅ yes
 **Compressed:** no
-**Investigation depth:** medium
+**Investigation depth:** deep
 
 **Summary.** A small enum feed that records transitions in overall track status. `parse_stream` returns one event per status change (5 in Japan 2026 Race). Each event payload is `{"Status": "<code>", "Message": "<label>"}`.
 
@@ -673,7 +673,7 @@ VSC codes (`"6"` = `VSCDeployed`, `"7"` = `VSCEnding`) and red flag (`"5"` = `Re
 - Status transitions can fire before the corresponding `RaceControlMessages` event is broadcast; treat `TrackStatus` as the authoritative machine-readable flag state and `RaceControlMessages` as the human-readable annotation.
 - `"2"` (Yellow) fires even for a single-sector yellow; it does not distinguish local from widespread yellows. Use `RaceControlMessages` with `Scope/Sector` to determine which sectors are affected.
 
-**Feeds these features** (current): none.
+**Feeds these features** (current): Race Strategy chart status-band overlay (yellow / SC / VSC / red windows). See `site/src/components/StrategyChart.tsx`.
 
 **Could power** (speculative): flag/SC/VSC overlay on race strategy chart, flag-state background colouring on any time-series chart.
 
@@ -941,7 +941,9 @@ Render a secondary axis below the race strategy chart showing track temperature 
 
 Shade the strategy chart background in yellow/red and annotate Safety Car and VSC windows so viewers can immediately see how incidents shaped the race.
 
-**Feeds required.** `TrackStatus.jsonStream` ❌ + `SessionData.jsonStream` ❌ + `RaceControlMessages.jsonStream` ❌
+**Status:** Built — `site/src/components/StrategyChart.tsx` renders this overlay from `manifest.race.race_status_bands` / `sprint_status_bands`. The SessionData/RaceControlMessages enrichments remain unimplemented (still ❌).
+
+**Feeds required.** `TrackStatus.jsonStream` ✅ + `SessionData.jsonStream` ❌ + `RaceControlMessages.jsonStream` ❌
 
 **Verify first.** `TrackStatus` gives machine-readable state transitions with session-relative timestamps; `SessionData.StatusSeries` gives the same transitions with UTC timestamps; `RaceControlMessages` provides the human-readable label (e.g. "SAFETY CAR DEPLOYED"). All three are ❌, so none is available in CI. Use `TrackStatus` as the authoritative state source and `RaceControlMessages` for the annotation text — they may arrive out of order by a few seconds.
 
