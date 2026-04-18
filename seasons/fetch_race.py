@@ -25,6 +25,8 @@ MANIFEST_FILES: list[str] = [
     "TyreStintSeries.jsonStream",
     "TimingAppData.jsonStream",
     "TimingData.jsonStream",
+    "TrackStatus.jsonStream",
+    "LapCount.jsonStream",
 ]
 
 

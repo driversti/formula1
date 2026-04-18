@@ -8,6 +8,14 @@ export const EXPECTED_SCHEMA_VERSION = "1.0.0";
 // without modifying the auto-generated schemas.ts.
 const SessionKeySchema = z.enum(["FP1", "FP2", "FP3", "SQ", "S", "Q", "R"]);
 
+const TrackStatusCodeSchema = z.enum(["Yellow", "SCDeployed", "VSCDeployed", "Red"]);
+
+const StatusBandSchema = z.object({
+  status: TrackStatusCodeSchema,
+  start_lap: z.number().int().min(1),
+  end_lap: z.number().int().min(1),
+});
+
 const TyreSetSchema = z.object({
   set_id: z.string(),
   compound: z.enum(["SOFT", "MEDIUM", "HARD", "INTERMEDIATE", "WET"]),
@@ -59,6 +67,8 @@ const RaceSchema = z.object({
     }),
   ),
   drivers: z.array(DriverInventorySchema),
+  race_status_bands: z.array(StatusBandSchema).default([]),
+  sprint_status_bands: z.array(StatusBandSchema).default([]),
 });
 
 const FullManifestSchema = ManifestSchema.extend({ race: RaceSchema });

@@ -387,3 +387,35 @@ def test_build_race_manifest_leaves_sprint_fields_none_on_non_sprint_weekend(
     for d in manifest.race.drivers:
         assert d.sprint_final_position is None
         assert d.sprint_dnf_at_lap is None
+
+
+def test_build_race_manifest_produces_empty_status_bands_for_australia(
+    mini_race_root: Path,
+) -> None:
+    manifest = build_race_manifest(
+        data_root=mini_race_root,
+        race_dir="2026/2026-03-08_Australian_Grand_Prix",
+        season=2026,
+        round_number=1,
+        slug="australia-2026",
+    )
+    assert manifest.race.race_status_bands == []
+    assert manifest.race.sprint_status_bands == []
+
+
+def test_build_race_manifest_produces_china_race_sc_band(
+    mini_race_root: Path,
+) -> None:
+    manifest = build_race_manifest(
+        data_root=mini_race_root,
+        race_dir="2026/2026-03-15_Chinese_Grand_Prix",
+        season=2026,
+        round_number=2,
+        slug="china-2026",
+    )
+    assert [(b.status, b.start_lap, b.end_lap) for b in manifest.race.race_status_bands] == [
+        ("SCDeployed", 11, 15),
+    ]
+    assert [(b.status, b.start_lap, b.end_lap) for b in manifest.race.sprint_status_bands] == [
+        ("Yellow", 1, 2),
+    ]

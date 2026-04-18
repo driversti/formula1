@@ -11,6 +11,7 @@ from f1.models import (
     Race,
     RaceStint,
     SessionRef,
+    StatusBand,
     TyreSet,
 )
 
@@ -226,3 +227,35 @@ def test_driver_inventory_defaults_for_sprint_position_and_dnf() -> None:
     )
     assert inv.sprint_final_position is None
     assert inv.sprint_dnf_at_lap is None
+
+
+def test_status_band_requires_positive_laps() -> None:
+    with pytest.raises(ValidationError):
+        StatusBand(status="Yellow", start_lap=0, end_lap=3)
+
+
+def test_status_band_allows_equal_start_and_end() -> None:
+    band = StatusBand(status="SCDeployed", start_lap=5, end_lap=5)
+    assert band.start_lap == 5
+    assert band.end_lap == 5
+
+
+def test_status_band_rejects_unknown_code() -> None:
+    with pytest.raises(ValidationError):
+        StatusBand(status="Blue", start_lap=1, end_lap=2)  # type: ignore[arg-type]
+
+
+def test_race_has_empty_status_band_defaults() -> None:
+    race = Race(
+        slug="x",
+        name="X GP",
+        location="City",
+        country="Country",
+        season=2026,
+        round=1,
+        date="2026-01-01",
+        sessions=[],
+        drivers=[],
+    )
+    assert race.race_status_bands == []
+    assert race.sprint_status_bands == []

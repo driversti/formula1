@@ -11,6 +11,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 Compound = Literal["SOFT", "MEDIUM", "HARD", "INTERMEDIATE", "WET"]
 SessionKey = Literal["FP1", "FP2", "FP3", "SQ", "S", "Q", "R"]
+TrackStatusCode = Literal["Yellow", "SCDeployed", "VSCDeployed", "Red"]
 
 
 class _StrictModel(BaseModel):
@@ -26,6 +27,14 @@ class TyreSet(_StrictModel):
     new_at_first_use: bool
     first_seen_session: SessionKey
     last_seen_session: SessionKey
+
+
+class StatusBand(_StrictModel):
+    """One continuous non-green track-status period within a session."""
+
+    status: TrackStatusCode
+    start_lap: int = Field(ge=1, description="Lap the status became active (inclusive)")
+    end_lap: int = Field(ge=1, description="Last lap the status was active (inclusive)")
 
 
 class RaceStint(_StrictModel):
@@ -104,6 +113,8 @@ class Race(_StrictModel):
     date: str
     sessions: list[SessionRef]
     drivers: list[DriverInventory]
+    race_status_bands: list[StatusBand] = Field(default_factory=list)
+    sprint_status_bands: list[StatusBand] = Field(default_factory=list)
 
 
 class Manifest(_StrictModel):

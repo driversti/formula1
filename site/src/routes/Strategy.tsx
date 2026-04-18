@@ -67,7 +67,12 @@ export default function Strategy() {
       {hasSprint && hasRace && (
         <SessionTabs value={session} onChange={setSession} />
       )}
-      <StrategyChart drivers={drivers} sessionKey={active} totalLaps={totalLaps} />
+      <StrategyChart
+        drivers={drivers}
+        sessionKey={active}
+        totalLaps={totalLaps}
+        statusBands={active === "R" ? manifest.race.race_status_bands : manifest.race.sprint_status_bands}
+      />
     </main>
   );
 }
