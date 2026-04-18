@@ -4,7 +4,7 @@
 # sync with FEATURED_RACES in precompute/src/f1/build.py, with
 # FEATURED_RACES in seasons/fetch_race.py, and with FEATURED_RACE_SLUGS
 # in site/src/config.ts.
-FEATURED_SLUGS := australia-2026 china-2026
+FEATURED_SLUGS := australia-2026 china-2026 japan-2026
 
 # -------- setup ------------------------------------------------------------
 
