@@ -36,6 +36,8 @@ const DriverInventorySchema = z.object({
   sets: z.array(TyreSetSchema),
   race_stints: z.array(RaceStintSchema).default([]),
   sprint_stints: z.array(RaceStintSchema).default([]),
+  final_position: z.union([z.number().int().min(1).max(22), z.null()]).default(null),
+  dnf_at_lap: z.union([z.number().int().min(1), z.null()]).default(null),
 });
 
 const RaceSchema = z.object({

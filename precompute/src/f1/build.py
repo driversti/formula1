@@ -8,7 +8,12 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 
-from f1.driver_meta import DriverMeta, build_driver_meta, extract_grid_positions
+from f1.driver_meta import (
+    DriverMeta,
+    build_driver_meta,
+    extract_final_positions_and_retirements,
+    extract_grid_positions,
+)
 from f1.inventory import (
     SessionStint,
     build_inventory,
@@ -121,6 +126,14 @@ def build_race_manifest(
             grid_positions = extract_grid_positions(ta)
             break
 
+    # Final race classification from TimingData: last Line value + Retired flag.
+    final_pos_and_retired: dict[str, tuple[int | None, bool]] = {}
+    for key, sess_dir in sessions:
+        if key == "R":
+            td = _reduce_stream(sess_dir, "TimingData.jsonStream")
+            final_pos_and_retired = extract_final_positions_and_retirements(td)
+            break
+
     # Session refs (metadata + path relative to data_root).
     session_refs: list[SessionRef] = []
     race_info: dict[str, object] = {}
@@ -171,6 +184,16 @@ def build_race_manifest(
             driver_number=racing_number,
             stints_for_session=stints_by_session.get("S", []),
         )
+        final_line, retired = final_pos_and_retired.get(racing_number, (None, False))
+        if not race_stints:
+            final_position = None
+            dnf_at_lap = None
+        elif retired:
+            final_position = None
+            dnf_at_lap = race_stints[-1].end_lap
+        else:
+            final_position = final_line
+            dnf_at_lap = None
         drivers.append(
             DriverInventory(
                 racing_number=meta.racing_number,
@@ -182,6 +205,8 @@ def build_race_manifest(
                 sets=sets,
                 race_stints=race_stints,
                 sprint_stints=sprint_stints,
+                final_position=final_position,
+                dnf_at_lap=dnf_at_lap,
             )
         )
     drivers.sort(key=lambda d: d.tla)

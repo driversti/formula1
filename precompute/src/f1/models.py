@@ -51,6 +51,17 @@ class DriverInventory(_StrictModel):
     sets: list[TyreSet]
     race_stints: list[RaceStint] = Field(default_factory=list)
     sprint_stints: list[RaceStint] = Field(default_factory=list)
+    final_position: int | None = Field(
+        default=None,
+        ge=1,
+        le=22,
+        description="Finishing position in Race; None if retired or race hasn't run",
+    )
+    dnf_at_lap: int | None = Field(
+        default=None,
+        ge=1,
+        description="Lap the final race stint ended on, when the driver retired",
+    )
 
     @property
     def sets_by_compound(self) -> dict[Compound, list[TyreSet]]:

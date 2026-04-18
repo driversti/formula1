@@ -170,3 +170,45 @@ def test_driver_inventory_has_empty_stint_lists_by_default() -> None:
     )
     assert inv.race_stints == []
     assert inv.sprint_stints == []
+
+
+def test_driver_inventory_defaults_for_final_position_and_dnf() -> None:
+    inv = DriverInventory(
+        racing_number="1",
+        tla="VER",
+        full_name="Max Verstappen",
+        team_name="Red Bull Racing",
+        team_color="#4781D7",
+        grid_position=1,
+        sets=[],
+    )
+    assert inv.final_position is None
+    assert inv.dnf_at_lap is None
+
+
+def test_driver_inventory_accepts_final_position() -> None:
+    inv = DriverInventory(
+        racing_number="1",
+        tla="VER",
+        full_name="Max Verstappen",
+        team_name="Red Bull Racing",
+        team_color="#4781D7",
+        grid_position=1,
+        sets=[],
+        final_position=3,
+    )
+    assert inv.final_position == 3
+
+
+def test_driver_inventory_rejects_final_position_out_of_range() -> None:
+    with pytest.raises(ValidationError):
+        DriverInventory(
+            racing_number="1",
+            tla="VER",
+            full_name="Max Verstappen",
+            team_name="Red Bull Racing",
+            team_color="#4781D7",
+            grid_position=1,
+            sets=[],
+            final_position=0,
+        )

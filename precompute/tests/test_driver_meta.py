@@ -74,3 +74,42 @@ def test_extract_grid_positions_reads_gridpos_from_lines() -> None:
 
 def test_extract_grid_positions_handles_empty_state() -> None:
     assert extract_grid_positions({}) == {}
+
+
+def test_extract_final_positions_and_retirements_reads_line_and_retired() -> None:
+    from f1.driver_meta import extract_final_positions_and_retirements
+
+    state: dict[str, object] = {
+        "Lines": {
+            "1":  {"Line": 1, "Retired": False},
+            "16": {"Line": 5, "Retired": True},
+            "44": {"Line": 3, "Retired": False},
+        }
+    }
+    result = extract_final_positions_and_retirements(state)
+    assert result["1"]  == (1, False)
+    assert result["16"] == (5, True)
+    assert result["44"] == (3, False)
+
+
+def test_extract_final_positions_and_retirements_handles_missing_fields() -> None:
+    from f1.driver_meta import extract_final_positions_and_retirements
+
+    state: dict[str, object] = {
+        "Lines": {
+            "1":  {"Retired": False},                  # no Line
+            "16": {"Line": 5},                         # no Retired → default False
+            "44": {"Line": "2", "Retired": "true"},    # string forms
+        }
+    }
+    result = extract_final_positions_and_retirements(state)
+    assert result["1"]  == (None, False)
+    assert result["16"] == (5, False)
+    assert result["44"] == (2, True)
+
+
+def test_extract_final_positions_and_retirements_empty_state_returns_empty() -> None:
+    from f1.driver_meta import extract_final_positions_and_retirements
+
+    assert extract_final_positions_and_retirements({}) == {}
+    assert extract_final_positions_and_retirements({"Lines": {}}) == {}

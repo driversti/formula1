@@ -63,3 +63,42 @@ def extract_grid_positions(timing_app_state: dict[str, object]) -> dict[str, int
         except (TypeError, ValueError):
             continue
     return grid
+
+
+def _to_bool_loose(value: object) -> bool:
+    """The feed encodes booleans as either Python bool or the strings 'true'/'false'."""
+    if isinstance(value, bool):
+        return value
+    return str(value).strip().lower() == "true"
+
+
+def _to_int_optional(value: object) -> int | None:
+    if value is None or value == "":
+        return None
+    try:
+        return int(value)  # type: ignore[arg-type]
+    except (TypeError, ValueError):
+        return None
+
+
+def extract_final_positions_and_retirements(
+    timing_data_state: dict[str, object],
+) -> dict[str, tuple[int | None, bool]]:
+    """Read final ``Line`` position and ``Retired`` flag per driver.
+
+    ``Line`` is the driver's last observed position; ``Retired`` is True
+    iff their last observed ``Retired`` value was truthy. Both fields
+    may be absent from the feed for a given driver; the tuple slot stays
+    ``None``/``False`` in that case.
+    """
+    lines = timing_data_state.get("Lines")
+    if not isinstance(lines, dict):
+        return {}
+    result: dict[str, tuple[int | None, bool]] = {}
+    for racing_number, raw in lines.items():
+        if not isinstance(raw, dict):
+            continue
+        final_line = _to_int_optional(raw.get("Line"))
+        retired = _to_bool_loose(raw.get("Retired", False))
+        result[str(racing_number)] = (final_line, retired)
+    return result
