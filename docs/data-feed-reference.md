@@ -42,11 +42,11 @@ Every per-session feed F1 publishes, at a glance. **Fetched** means the file is 
 | `SessionStatus.jsonStream` | Running session state: Inactive / Started / Finished / Finalised / Ends. | ❌ | medium |
 | `TimingData.jsonStream` | Per-driver live timing: lap times, sector times, position, Retired. | ✅ | deep |
 | `TimingAppData.jsonStream` | Per-driver tyre sets, stints, pit-in/out state, grid position. | ✅ | deep |
-| `TimingStats.jsonStream` | Personal-best / session-best splits and speeds. | ❌ | _TBD — Phase 2 group 2_ |
-| `TopThree.jsonStream` | Top-3-on-track summary (position-order, gaps). | ❌ | _TBD — Phase 2 group 2_ |
-| `LapCount.jsonStream` | Current / total session laps. | ❌ | _TBD — Phase 2 group 2_ |
-| `LapSeries.jsonStream` | Per-driver lap-by-lap position series. | ❌ | _TBD — Phase 2 group 2_ |
-| `ExtrapolatedClock.jsonStream` | Extrapolated session clock (remaining time, running flag). | ❌ | _TBD — Phase 2 group 2_ |
+| `TimingStats.jsonStream` | Personal-best / session-best splits and speeds. | ❌ | medium |
+| `TopThree.jsonStream` | Top-3-on-track summary (position-order, gaps). | ❌ | medium |
+| `LapCount.jsonStream` | Current / total session laps. | ❌ | medium |
+| `LapSeries.jsonStream` | Per-driver lap-by-lap position series. | ❌ | medium |
+| `ExtrapolatedClock.jsonStream` | Extrapolated session clock (remaining time, running flag). | ❌ | medium |
 | `TyreStintSeries.jsonStream` | Per-driver tyre stint series (compound, new/used, lap counters). | ✅ | deep |
 | `CurrentTyres.jsonStream` | Currently-fitted tyre per driver. | ❌ | _TBD — Phase 2 group 3_ |
 | `PitLaneTimeCollection.jsonStream` | Pit-lane timing per pit event. | ❌ | _TBD — Phase 2 group 3_ |
@@ -220,3 +220,197 @@ Feeds in this group describe the session's overall shape — when it runs, what'
 **Feeds these features** (current): none.
 
 **Could power** (speculative): live-session state banner, gating precompute jobs until a session reaches `"Finalised"`.
+
+## Timing & classification
+
+Feeds in this group carry per-driver lap and sector timing, on-track running order, and the signals used to derive final classification. Two of the seven feeds — `TimingData` and `TimingAppData` — are already consumed by the production precompute pipeline.
+
+### `TimingData.jsonStream`
+
+**Fetched by CI:** ✅ yes (via `seasons/fetch_race.py`, added by the race-strategy-chart PR)
+**Compressed:** no
+**Investigation depth:** deep — used in production
+
+**Summary.** The main real-time per-driver timing stream. Each event is a merge-patch against a `Lines` dict keyed by racing number. A full driver record carries: `Line` (on-track running order), `Position` (string), `GapToLeader`, `IntervalToPositionAhead` (`{Value, Catching}`), `LastLapTime` (`{Value, Status, OverallFastest, PersonalFastest}`), `BestLapTime` (`{Value, Lap}`), `NumberOfLaps`, `NumberOfPitStops`, `Retired`, `InPit`, `PitOut`, `Stopped`, `Status` (bitmask), `Sectors` (array/dict of `{Value, Status, OverallFastest, PersonalFastest, Segments}`), and `Speeds` (`I1`, `I2`, `FL`, `ST` speed traps). Most events are sparse patches updating only changed fields.
+
+**Example event** (Japan 2026 Race, ts 4020220 ms):
+```json
+{ "Lines": { "10": {
+    "LastLapTime": { "Value": "1:35.436", "PersonalFastest": true },
+    "BestLapTime":  { "Value": "1:35.436", "Lap": 2 },
+    "Sectors": { "2": { "Value": "18.023", "PersonalFastest": true } },
+    "NumberOfLaps": 2
+} } }
+```
+
+**Known quirks.**
+- **Quirk #3 (canonical DNF flag):** `Retired` is the authoritative DNF signal. Do not infer retirement from lap counts, stint truncation, or gaps; only `Retired: true` is reliable.
+- **Quirk #4 (finishing classification):** `Line` is the last-known on-track position number, not the official stewards' classification. Drivers who are DNF but later awarded a finishing position by stewards will have `Retired: true` and a stale `Line` value. No field in this archive format carries the official final classification; `Line` is the best available proxy. (See `SessionData.jsonStream` note in the Session & weekend metadata section.)
+- `Retired` arrives as Python `bool` in this feed; normalize defensively anyway.
+- The bootstrap event (timestamp ~2839 ms) emits `Lines: {}` with an empty object before any driver data populates.
+- Sector sub-fields use both array (in the first full-state event) and dict (in subsequent patches) shapes for the `Sectors` key — the merge reducer handles this transparently.
+- `BestLapTime` carries a `Lap` field (lap number of the personal best) which is absent from `LastLapTime`.
+
+**Feeds these features** (current): final finishing position (`Line`) and DNF flag (`Retired`) for the race strategy chart, consumed by `precompute/src/f1/driver_meta.py::extract_final_positions_and_retirements`. Lap count per driver (`NumberOfLaps`) consumed by `driver_meta.py::extract_lap_counts` for stint reconciliation.
+
+**Could power** (speculative): live lap-time leaderboard, sector-by-sector timing breakdowns, gap-to-leader trace, pit-stop detection overlay.
+
+### `TimingAppData.jsonStream`
+
+**Fetched by CI:** ✅ yes (via `seasons/fetch_race.py`)
+**Compressed:** no
+**Investigation depth:** deep — used in production
+
+**Summary.** Per-driver supplemental timing data focused on tyre stint tracking and grid position. `Lines` dict keyed by racing number. Before race start: each driver entry carries `GridPos` (string, their starting grid slot) and `RacingNumber`. Once on-track: a `Stints` structure appears — initially a list in the first event, then updated as a dict keyed by stint index. Each stint object contains `Compound`, `New` (string `"true"`/`"false"`), `TyresNotChanged`, `StartLaps`, `TotalLaps`, `LapFlags`, and (once the stint accumulates laps) `LapTime` and `LapNumber`. Between stint patches the feed also emits `Line` position updates.
+
+**Example event** (Japan 2026 Race, ts 3303189 ms — race start):
+```json
+{ "Lines": { "12": { "Stints": [
+    { "Compound": "MEDIUM", "New": "true", "TyresNotChanged": "0",
+      "TotalLaps": 0, "StartLaps": 0, "LapFlags": 0 }
+] } } }
+```
+
+**Known quirks.**
+- `Stints` is a **list** in the first full-state event, then a **dict** keyed by stint index string (`"0"`, `"1"`, …) in all subsequent patches. The merge reducer promotes list→dict, so the reduced state is always dict-indexed. `precompute/src/f1/inventory.py::extract_session_stints` sorts by these integer-keyed indices.
+- `New` is a string (`"true"` / `"false"`), not a bool. `inventory.py::_to_bool` normalizes it.
+- `GridPos` is present only in the very first broadcast event (before the session starts). If the pre-race initialization event is missing, `GridPos` will be absent from the reduced state. `driver_meta.py::extract_grid_positions` handles the `""` empty-string case.
+- Stints with non-canonical `Compound` values (e.g. an in-progress pit-stop state) are skipped by `extract_session_stints`.
+
+**Feeds these features** (current): tyre inventory across the full weekend (`precompute/src/f1/inventory.py`), starting grid positions for the race (`driver_meta.py::extract_grid_positions`).
+
+**Could power** (speculative): live tyre-change detection, pit-stop lap annotation, used-vs-new tyre indicator on the race strategy chart.
+
+### `TimingStats.jsonStream`
+
+**Fetched by CI:** ❌ no
+**Compressed:** no
+**Investigation depth:** medium
+
+**Summary.** Per-driver session-best statistics stream. `Lines` dict keyed by racing number. Each driver record holds: `PersonalBestLapTime` (`{Value, Lap, Position}` — position is their session rank for that metric), `BestSectors` (dict of sector index → `{Value, Position}`), and `BestSpeeds` (speed trap keys `I1`, `I2`, `FL`, `ST` → `{Value, Position}`). Updates arrive immediately after each driver completes a lap, overwriting only the improved fields. The top-level state also carries `SessionType` (`"Race"`) and `Withheld` flag.
+
+**Example event** (Japan 2026 Race, ts 3860205 ms):
+```json
+{ "Lines": { "81": { "BestSpeeds": { "I1": { "Position": 1, "Value": "280" } } } } }
+```
+
+Reduced state example for driver 1:
+```json
+{ "PersonalBestLapTime": { "Value": "1:33.208", "Lap": 52, "Position": 6 },
+  "BestSectors": { "0": { "Position": 6, "Value": "33.929" }, "1": { "Position": 7, "Value": "41.281" }, "2": { "Position": 7, "Value": "17.739" } },
+  "BestSpeeds": { "I1": { "Value": "289", "Position": 2 }, "FL": { "Value": "287", "Position": 5 }, "ST": { "Value": "304", "Position": 4 } } }
+```
+
+**Known quirks.**
+- `Position` within each stat object is a session-wide rank (1 = fastest in session), not the on-track running position. It updates live as faster times are set.
+- `BestSectors` keys are zero-indexed strings (`"0"`, `"1"`, `"2"`) in the reduced dict (promoted from an initial list, same list→dict pattern as `TimingAppData.Stints`).
+- The bootstrap event emits all fields with empty `Value` strings before any real timing data arrives.
+
+**Feeds these features** (current): none.
+
+**Could power** (speculative): fastest-sector and speed-trap leaderboards, "purple / green / yellow" sector colour logic for a timing tower UI.
+
+### `TopThree.jsonStream`
+
+**Fetched by CI:** ❌ no
+**Compressed:** no
+**Investigation depth:** medium
+
+**Summary.** A cut-down view of the top three cars on track, updated in real time. The `Lines` field starts as a list of three full driver objects (in position order), then subsequent patches arrive as a dict keyed by index string (`"0"`, `"1"`, `"2"`). Each entry carries: `RacingNumber`, `Tla`, `BroadcastName`, `FullName`, `Team`, `TeamColour`, `LapTime`, `LapState` (status bitmask), `DiffToAhead`, `DiffToLeader`, `OverallFastest`, `PersonalFastest`. Exactly 3 positions in the reduced state.
+
+**Example event** (Japan 2026 Race, ts 3973882 ms):
+```json
+{ "Lines": { "1": { "DiffToAhead": "+1.821", "DiffToLeader": "+1.821" } } }
+```
+
+Reduced state (position 2, final):
+```json
+{ "RacingNumber": "16", "Tla": "LEC", "Team": "Ferrari", "TeamColour": "ED1131",
+  "DiffToAhead": "+1.548", "DiffToLeader": "+15.270", "LapTime": "1:32.634",
+  "LapState": 1089, "OverallFastest": false, "PersonalFastest": true }
+```
+
+**Known quirks.**
+- `Lines` bootstrap is a list (3 elements); subsequent updates are dict-indexed. Same list→dict merge pattern as `TimingAppData.Stints` and `TimingStats.BestSectors`.
+- `TeamColour` here is a hex string **without** the leading `#` (e.g. `"ED1131"`). The pipeline normalizes this in `driver_meta.py::_normalize_color` for `DriverList`, but `TopThree` is not currently consumed.
+- `LapState` is a bitmask integer whose individual bit meanings are undocumented in this archive.
+
+**Feeds these features** (current): none.
+
+**Could power** (speculative): a broadcast-style top-3 overlay widget, live gap-to-leader display.
+
+### `LapCount.jsonStream`
+
+**Fetched by CI:** ❌ no
+**Compressed:** no
+**Investigation depth:** medium
+
+**Summary.** A very small stream (53 events for a 53-lap race) carrying two fields: `CurrentLap` and `TotalLaps`. The first event sets both; all subsequent events update only `CurrentLap` once per lap. The reduced state is a flat dict `{"CurrentLap": 53, "TotalLaps": 53}`.
+
+**Example events** (Japan 2026 Race):
+```json
+{ "CurrentLap": 1, "TotalLaps": 53 }
+{ "CurrentLap": 2 }
+```
+
+**Known quirks.**
+- `TotalLaps` is only present in the first event; it is not repeated on subsequent updates.
+- Event count equals `TotalLaps` exactly (one event per lap). The stream ends as soon as `CurrentLap` reaches `TotalLaps`.
+
+**Feeds these features** (current): none. (The per-driver lap count comes from `TimingData.NumberOfLaps`, not this feed.)
+
+**Could power** (speculative): progress bar / lap counter widget, axis labels on the race strategy chart.
+
+### `LapSeries.jsonStream`
+
+**Fetched by CI:** ❌ no
+**Compressed:** no
+**Investigation depth:** medium
+
+**Summary.** Per-driver position-by-lap series. Top-level keys of the stream are **driver racing numbers** (not wrapped in a `Lines` dict). Each driver object holds `RacingNumber` and `LapPosition`, a dict keyed by lap number (string) whose value is the driver's position (also a string). Updates arrive per-driver per-lap as each driver completes a lap. The reduced state has one entry per driver, each with a fully-populated `LapPosition` dict covering every lap they completed.
+
+**Example events** (Japan 2026 Race):
+```json
+{ "12": { "RacingNumber": "12", "LapPosition": ["1"] } }
+{ "81": { "LapPosition": { "1": "1" } } }
+{ "14": { "LapPosition": { "1": "20" } } }
+```
+
+Reduced example for driver 12 (Antonelli, race winner):
+```json
+{ "RacingNumber": "12", "LapPosition": { "1": "6", "2": "5", ..., "49": "1", "53": "1" } }
+```
+
+**Known quirks.**
+- The first event emits `LapPosition` as a list (bootstrap, index 0 = lap 1); subsequent patches are dict-keyed by lap number string. The merge reducer promotes list→dict, but the resulting key `"0"` corresponds to lap 1 in the list bootstrap. Callers must handle this off-by-one if consuming the raw reduced state directly.
+- Position values are strings, not integers (`"1"` not `1`).
+- Driver 12 started lap 1 in position `"6"` (grid position was 1 but the bootstrap reflects on-track order after the start rather than before). The first-lap figure may not match grid position.
+
+**Feeds these features** (current): none.
+
+**Could power** (speculative): position-trace chart (position vs lap for every driver), gap-to-leader animation, overtake-count statistics. This is the natural data source for a position-trace / "racing lines" visualization.
+
+### `ExtrapolatedClock.jsonStream`
+
+**Fetched by CI:** ❌ no
+**Compressed:** no
+**Investigation depth:** medium
+
+**Summary.** A tiny stream (3 events for the Japan 2026 Race) carrying the session clock: `Utc` (ISO-8601 timestamp of the reference point), `Remaining` (`HH:MM:SS` string), and `Extrapolating` (bool). The first event is emitted when the session is initialized (well before the race starts); the third event marks when the clock transitions to actively counting down.
+
+**All events** (Japan 2026 Race):
+```json
+{ "Utc": "2026-03-29T04:10:20.01Z", "Remaining": "02:00:00", "Extrapolating": false }
+{ "Utc": "2026-03-29T05:14:03.011Z", "Remaining": "01:59:58" }
+{ "Utc": "2026-03-29T05:14:04.01Z", "Remaining": "01:59:57", "Extrapolating": true }
+```
+
+**Known quirks.**
+- **Quirk #5:** `Extrapolating` is a Python **bool** (`true`/`false`) in this feed — not a string. This is unlike many other boolean fields in the timing archive (e.g. `TimingAppData.Stints[n].New` which is the string `"true"`). Normalize defensively if consuming alongside other feeds.
+- The second event omits `Extrapolating`, meaning the merge-patch state retains the previous `false` value until the third event sets it `true`.
+- With only 3 events, the stream carries no lap-by-lap ticks — the clock must be extrapolated client-side from `Utc` + `Remaining` + the `Extrapolating` flag.
+- `Remaining` format is `HH:MM:SS` (whole seconds only); sub-second precision is not provided.
+
+**Feeds these features** (current): none.
+
+**Could power** (speculative): session countdown timer, race-start detection (transition from `Extrapolating: false` to `true`), race-end time estimation.
