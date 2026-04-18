@@ -91,7 +91,7 @@ def build_status_bands(
 
         if code == "1":  # AllClear closes any active band
             if open_status is not None and open_start_lap is not None:
-                end_lap = lap if lap <= open_start_lap + 1 else lap - 1
+                end_lap = max(lap - 1, open_start_lap)
                 bands.append(
                     StatusBand(status=open_status, start_lap=open_start_lap, end_lap=end_lap)
                 )
@@ -101,7 +101,7 @@ def build_status_bands(
 
         if code == "7":  # VSCEnding closes only VSCDeployed
             if open_status == "VSCDeployed" and open_start_lap is not None:
-                end_lap = lap if lap <= open_start_lap + 1 else lap - 1
+                end_lap = max(lap - 1, open_start_lap)
                 bands.append(
                     StatusBand(status="VSCDeployed", start_lap=open_start_lap, end_lap=end_lap)
                 )
@@ -118,7 +118,7 @@ def build_status_bands(
         # Different non-green status arrives without an AllClear between —
         # close the old one at lap-1 (or start_lap if same lap) and open the new.
         if open_status is not None and open_start_lap is not None:
-            end_lap = lap if lap <= open_start_lap + 1 else lap - 1
+            end_lap = max(lap - 1, open_start_lap)
             bands.append(
                 StatusBand(status=open_status, start_lap=open_start_lap, end_lap=end_lap)
             )

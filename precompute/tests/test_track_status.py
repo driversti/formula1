@@ -78,11 +78,11 @@ def test_collect_lap_boundaries_empty_input_returns_seed() -> None:
 
 
 def test_build_status_bands_standard_yellow_then_sc() -> None:
-    # Status transitions at ms: Yellow opens at 0 (lap 1), AllClear at 180000 (lap 3),
+    # Status transitions at ms: Yellow opens at 0 (lap 1), AllClear at 200000 (lap 3),
     # SC at 2_400_000 (lap 26), AllClear at 3_000_000 (lap 32).
     transitions = [
         (0,       "2"),    # Yellow
-        (180_000, "1"),    # AllClear
+        (200_000, "1"),    # AllClear (lap 3)
         (2_400_000, "4"),  # SCDeployed
         (3_000_000, "1"),  # AllClear
     ]
