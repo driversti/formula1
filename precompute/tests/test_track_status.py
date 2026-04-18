@@ -96,3 +96,70 @@ def test_build_status_bands_standard_yellow_then_sc() -> None:
         StatusBand(status="Yellow",     start_lap=1,  end_lap=2),
         StatusBand(status="SCDeployed", start_lap=26, end_lap=32),
     ]
+
+
+def _linear_laps(n: int, per_lap_ms: int = 90_000) -> list[tuple[int, int]]:
+    """Helper: generate lap boundaries at fixed pace."""
+    return [(per_lap_ms * (lap - 1), lap) for lap in range(1, n + 1)]
+
+
+def test_build_status_bands_status_at_session_start() -> None:
+    # Yellow active from t=0 on lap 1.
+    transitions = [(0, "2"), (300_000, "1")]
+    bands = build_status_bands(transitions, _linear_laps(10), total_laps=10)
+    assert bands == [StatusBand(status="Yellow", start_lap=1, end_lap=3)]
+
+
+def test_build_status_bands_status_extends_to_session_end() -> None:
+    # SC deployed partway through lap 6 (t=450_001 = just inside lap 6),
+    # never cleared — clamped to total_laps.
+    transitions = [(450_001, "4")]
+    bands = build_status_bands(transitions, _linear_laps(10), total_laps=10)
+    assert bands == [StatusBand(status="SCDeployed", start_lap=6, end_lap=10)]
+
+
+def test_build_status_bands_vsc_ending_closes_vsc() -> None:
+    transitions = [
+        (0,        "6"),  # VSCDeployed on lap 1
+        (300_000,  "7"),  # VSCEnding on lap 4
+    ]
+    bands = build_status_bands(transitions, _linear_laps(10), total_laps=10)
+    assert bands == [StatusBand(status="VSCDeployed", start_lap=1, end_lap=3)]
+
+
+def test_build_status_bands_stray_vsc_ending_is_noop() -> None:
+    # VSCEnding with no prior VSCDeployed — should produce no band.
+    transitions = [(300_000, "7")]
+    bands = build_status_bands(transitions, _linear_laps(10), total_laps=10)
+    assert bands == []
+
+
+def test_build_status_bands_duplicate_codes_do_not_split() -> None:
+    transitions = [(0, "2"), (90_000, "2"), (180_000, "1")]
+    bands = build_status_bands(transitions, _linear_laps(10), total_laps=10)
+    assert bands == [StatusBand(status="Yellow", start_lap=1, end_lap=2)]
+
+
+def test_build_status_bands_red_flag_band() -> None:
+    transitions = [(0, "5"), (300_000, "1")]
+    bands = build_status_bands(transitions, _linear_laps(10), total_laps=10)
+    assert bands == [StatusBand(status="Red", start_lap=1, end_lap=3)]
+
+
+def test_build_status_bands_empty_inputs_return_empty_list() -> None:
+    assert build_status_bands([], _linear_laps(10), total_laps=10) == []
+    assert build_status_bands([(0, "2")], [], total_laps=10) == []
+    assert build_status_bands([(0, "2")], _linear_laps(10), total_laps=0) == []
+
+
+def test_build_status_bands_non_green_to_non_green_without_allclear() -> None:
+    # Yellow on lap 1, VSC deployed mid-lap-5 (449_000 ms) without AllClear in between —
+    # close the Yellow at lap 4, open VSC on lap 5. AllClear at 719_000 ms (mid-lap-8)
+    # closes VSC at lap 7. Timestamps deliberately placed mid-lap to avoid boundary
+    # ambiguity at the `bisect_right` edge.
+    transitions = [(0, "2"), (449_000, "6"), (719_000, "1")]
+    bands = build_status_bands(transitions, _linear_laps(15), total_laps=15)
+    assert bands == [
+        StatusBand(status="Yellow",      start_lap=1, end_lap=4),
+        StatusBand(status="VSCDeployed", start_lap=5, end_lap=7),
+    ]
