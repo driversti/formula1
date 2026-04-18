@@ -37,6 +37,11 @@ export default function Race() {
               description="Pre-race tyre allocation for all drivers."
               to={`/race/${slug}/tyres`}
             />
+            <AnalyticsTile
+              title="Race Strategy"
+              description="Tyre stints per driver with pit-stop timeline."
+              to={`/race/${slug}/strategy`}
+            />
           </div>
         </section>
       ) : (

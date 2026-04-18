@@ -279,3 +279,111 @@ def test_main_unknown_slug_without_overrides_errors(
 
     with pytest.raises(SystemExit):
         build_mod.main(["--slug", "imaginary-gp"])
+
+
+def test_build_race_manifest_populates_race_stints(mini_race_root: Path) -> None:
+    manifest = build_race_manifest(
+        data_root=mini_race_root,
+        race_dir="2026/2026-03-08_Australian_Grand_Prix",
+        season=2026,
+        round_number=1,
+        slug="australia-2026",
+    )
+    ver = next(d for d in manifest.race.drivers if d.tla == "VER")
+    assert len(ver.race_stints) > 0
+    assert ver.sprint_stints == []  # Melbourne is not a sprint weekend
+    # Race stints should be continuous.
+    if len(ver.race_stints) > 1:
+        for prev, curr in zip(ver.race_stints, ver.race_stints[1:], strict=False):
+            assert curr.start_lap == prev.end_lap + 1
+
+
+def test_build_race_manifest_populates_sprint_stints_on_sprint_weekend(
+    mini_race_root: Path,
+) -> None:
+    manifest = build_race_manifest(
+        data_root=mini_race_root,
+        race_dir="2026/2026-03-15_Chinese_Grand_Prix",
+        season=2026,
+        round_number=2,
+        slug="china-2026",
+    )
+    ver = next(d for d in manifest.race.drivers if d.tla == "VER")
+    assert len(ver.sprint_stints) > 0
+    assert len(ver.race_stints) > 0
+
+
+def test_build_race_manifest_marks_finishers(mini_race_root: Path) -> None:
+    manifest = build_race_manifest(
+        data_root=mini_race_root,
+        race_dir="2026/2026-03-08_Australian_Grand_Prix",
+        season=2026,
+        round_number=1,
+        slug="australia-2026",
+    )
+    ver = next(d for d in manifest.race.drivers if d.tla == "VER")
+    assert ver.final_position == 1
+    assert ver.dnf_at_lap is None
+
+
+def test_build_race_manifest_marks_dnf_at_last_stint_end(mini_race_root: Path) -> None:
+    manifest = build_race_manifest(
+        data_root=mini_race_root,
+        race_dir="2026/2026-03-08_Australian_Grand_Prix",
+        season=2026,
+        round_number=1,
+        slug="australia-2026",
+    )
+    lec = next(d for d in manifest.race.drivers if d.tla == "LEC")
+    assert lec.final_position is None
+    assert lec.dnf_at_lap is not None
+    assert lec.dnf_at_lap == lec.race_stints[-1].end_lap
+
+
+def test_build_race_manifest_leaves_position_fields_none_when_no_race_stints(
+    mini_race_root: Path,
+) -> None:
+    # Guard test: for drivers with no race stints (race not yet run / DNS),
+    # both position fields stay None regardless of the TimingData feed.
+    manifest = build_race_manifest(
+        data_root=mini_race_root,
+        race_dir="2026/2026-03-15_Chinese_Grand_Prix",
+        season=2026,
+        round_number=2,
+        slug="china-2026",
+    )
+    for d in manifest.race.drivers:
+        if not d.race_stints:
+            assert d.final_position is None
+            assert d.dnf_at_lap is None
+
+
+def test_build_race_manifest_marks_sprint_finishers(mini_race_root: Path) -> None:
+    manifest = build_race_manifest(
+        data_root=mini_race_root,
+        race_dir="2026/2026-03-15_Chinese_Grand_Prix",
+        season=2026,
+        round_number=2,
+        slug="china-2026",
+    )
+    ver = next(d for d in manifest.race.drivers if d.tla == "VER")
+    lec = next(d for d in manifest.race.drivers if d.tla == "LEC")
+    assert ver.sprint_final_position == 1
+    assert ver.sprint_dnf_at_lap is None
+    assert lec.sprint_final_position == 2
+    assert lec.sprint_dnf_at_lap is None
+
+
+def test_build_race_manifest_leaves_sprint_fields_none_on_non_sprint_weekend(
+    mini_race_root: Path,
+) -> None:
+    manifest = build_race_manifest(
+        data_root=mini_race_root,
+        race_dir="2026/2026-03-08_Australian_Grand_Prix",
+        season=2026,
+        round_number=1,
+        slug="australia-2026",
+    )
+    for d in manifest.race.drivers:
+        assert d.sprint_final_position is None
+        assert d.sprint_dnf_at_lap is None

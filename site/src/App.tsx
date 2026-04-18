@@ -4,6 +4,7 @@ import Seasons from "./routes/Seasons";
 import Season from "./routes/Season";
 import Race from "./routes/Race";
 import Tyres from "./routes/Tyres";
+import Strategy from "./routes/Strategy";
 import Driver from "./routes/Driver";
 import Legal from "./routes/Legal";
 import NotFound from "./routes/NotFound";
@@ -19,6 +20,7 @@ const router = createBrowserRouter(
         { path: "/season/:year", element: <Season />, errorElement: <NotFound /> },
         { path: "/race/:slug", element: <Race />, errorElement: <NotFound /> },
         { path: "/race/:slug/tyres", element: <Tyres />, errorElement: <NotFound /> },
+        { path: "/race/:slug/strategy", element: <Strategy />, errorElement: <NotFound /> },
         { path: "/race/:slug/driver/:tla", element: <Driver />, errorElement: <NotFound /> },
         { path: "/legal", element: <Legal /> },
         { path: "*", element: <NotFound /> },

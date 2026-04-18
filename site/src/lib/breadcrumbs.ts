@@ -30,7 +30,9 @@ export function buildTrail(pathname: string, schedule: Season[]): Crumb[] {
     ];
   }
 
-  const raceMatch = pathname.match(/^\/race\/([^/]+)(?:\/(tyres|driver\/([A-Za-z0-9]+)))?\/?$/);
+  const raceMatch = pathname.match(
+    /^\/race\/([^/]+)(?:\/(tyres|strategy|driver\/([A-Za-z0-9]+)))?\/?$/
+  );
   if (raceMatch) {
     const slug = raceMatch[1];
     const leaf = raceMatch[2];
@@ -51,6 +53,8 @@ export function buildTrail(pathname: string, schedule: Season[]): Crumb[] {
 
     if (leaf === "tyres") {
       trail.push({ label: "Tyres", href: `/race/${slug}/tyres`, current: true });
+    } else if (leaf === "strategy") {
+      trail.push({ label: "Race Strategy", href: `/race/${slug}/strategy`, current: true });
     } else if (leaf?.startsWith("driver/")) {
       const tla = leaf.slice("driver/".length).toUpperCase();
       trail.push({
