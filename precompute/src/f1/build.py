@@ -141,11 +141,12 @@ def build_race_manifest(
         stints_for_key = stints_by_session.get(key, [])
         if not stints_for_key:
             continue
-        total_laps = max((s.end_laps for s in stints_for_key), default=0)
-        if total_laps < 1:
-            continue
         ts_events = _parse_events(sess_dir, "TrackStatus.jsonStream")
         lc_events = _parse_events(sess_dir, "LapCount.jsonStream")
+        lap_boundaries = collect_lap_boundaries(lc_events)
+        total_laps = max((lap for _, lap in lap_boundaries), default=0)
+        if total_laps < 1:
+            continue
         transitions = collect_status_transitions(ts_events)
         if transitions and not lc_events:
             # Rare: status data but no lap reference; log and skip rather than crash.
@@ -156,7 +157,7 @@ def build_race_manifest(
             continue
         bands = build_status_bands(
             transitions,
-            collect_lap_boundaries(lc_events),
+            lap_boundaries,
             total_laps=total_laps,
         )
         if key == "R":
