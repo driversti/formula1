@@ -61,7 +61,7 @@ Every per-session feed F1 publishes, at a glance. **Fetched** means the file is 
 | `TeamRadio.jsonStream` | Team radio clip metadata (driver, URL, timestamp). | ❌ | medium |
 | `AudioStreams.jsonStream` | Available audio stream URLs (commentary feeds). | ❌ | medium |
 | `ContentStreams.jsonStream` | Available video/content stream URLs. | ❌ | medium |
-| `ChampionshipPrediction.jsonStream` | Live championship-standings prediction. | ❌ | _TBD — Phase 2 group 9_ |
+| `ChampionshipPrediction.jsonStream` | Live championship-standings prediction. | ❌ | medium |
 
 TBD placeholders in this table are intentional: they get filled in by the Phase 2 task that investigates each group, which keeps each commit self-contained.
 
@@ -875,3 +875,36 @@ A two-event manifest listing video and audio content streams. The Japan 2026 Rac
 Two stream types appear: `"Commentary"` (a Monterosa interactive cloud widget URL, `Utc` is the .NET default `0001-01-01` indicating no live timestamp) and `"Audio"` (the same HLS URL as in `AudioStreams`). The `Uri` values are ephemeral authenticated URLs; no onboard-camera or video-highlight entries were observed in the sessions inspected.
 
 **Feeds these features** (current): none.
+
+## Predictions
+
+### `ChampionshipPrediction.jsonStream`
+
+**Fetched by CI:** ❌ no
+**Compressed:** no
+**Investigation depth:** medium
+
+Emits live driver and constructor championship projections throughout the race. Japan 2026 Race produced **85 events** over ~94 minutes (avg ~67 s apart, irregular cadence). The first two events arrive at the same timestamp: one initialises all entries to empty dicts, the second seeds the full baseline. Subsequent events are **partial diffs** — only entries whose predicted values changed are included.
+
+Reduced state has two top-level keys, `Drivers` and `Teams`. Each entry carries `CurrentPosition`, `CurrentPoints` (season standings at session start), `PredictedPosition`, and `PredictedPoints` (projected post-race standings given the current race order). `Teams` uses the full technical team name as key (e.g. `"McLaren Mercedes"`), with a shorter `TeamName` display field.
+
+```json
+// Driver #12 — Antonelli, final reduced state
+"12": {
+  "RacingNumber": "12",
+  "CurrentPosition": 2, "CurrentPoints": 47.0,
+  "PredictedPosition": 1, "PredictedPoints": 72.0
+}
+// Driver #63 — Russell, final reduced state
+"63": {
+  "RacingNumber": "63",
+  "CurrentPosition": 1, "CurrentPoints": 51.0,
+  "PredictedPosition": 2, "PredictedPoints": 63.0
+}
+```
+
+**Known quirks:** The dual-event initialisation (empty dict followed immediately by full baseline) must be handled before merging diffs, or the baseline is silently dropped. Sprint-weekend carry-over was not tested; `CurrentPoints` is assumed to reflect any sprint points already awarded before the main race.
+
+**Feeds these features** (current): none.
+
+**Could power:** post-race championship standings table; race-impact visualisation showing who gained or lost positions in the championship; win-probability or title-contention charts updated lap by lap.
