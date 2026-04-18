@@ -21,6 +21,21 @@ test("drill into 2026 → Australian GP → Tyre Inventory", async ({ page }) =>
   await expect(cards).toHaveCount(22);
 });
 
+test("drill into 2026 → Chinese GP → Tyre Inventory", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("link", { name: /2026/ }).click();
+  await expect(page).toHaveURL(/\/season\/2026$/);
+
+  await page.getByRole("link", { name: /Chinese Grand Prix/ }).click();
+  await expect(page).toHaveURL(/\/race\/china-2026$/);
+  await expect(page.getByRole("heading", { name: /Chinese Grand Prix/ })).toBeVisible();
+
+  await page.getByRole("link", { name: /Tyre Inventory/ }).click();
+  await expect(page).toHaveURL(/\/race\/china-2026\/tyres$/);
+  const cards = page.locator('a[href^="/race/china-2026/driver/"]');
+  await expect(cards).toHaveCount(22);
+});
+
 test("non-featured race tile is disabled and shows Coming soon", async ({ page }) => {
   await page.goto("/season/2026");
   const japaneseTile = page.locator('div[aria-disabled="true"]', { hasText: /Japanese Grand Prix/ });
