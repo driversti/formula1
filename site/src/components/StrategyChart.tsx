@@ -1,4 +1,5 @@
 import { Fragment, type CSSProperties } from "react";
+import type * as React from "react";
 import { Group } from "@visx/group";
 import { scaleLinear, scaleBand } from "@visx/scale";
 import { Bar } from "@visx/shape";
@@ -16,14 +17,33 @@ type StatusBand = {
   end_lap: number;
 };
 
-// STATUS_LABEL is pre-declared for Task 14 (tooltip wiring) — not yet used.
 const STATUS_LABEL: Record<TrackStatusCode, string> = {
   Yellow: "Yellow",
   SCDeployed: "Safety Car",
   VSCDeployed: "Virtual Safety Car",
   Red: "Red Flag",
 };
-void STATUS_LABEL;
+
+const STATUS_FILL: Record<TrackStatusCode, { band: string; strip: string }> = {
+  Yellow:       { band: "url(#statusYellowHatchLow)", strip: "url(#statusYellowHatch)" },
+  SCDeployed:   { band: "#f97316",                    strip: "#f97316" },
+  VSCDeployed:  { band: "#fb923c",                    strip: "#fb923c" },
+  Red:          { band: "url(#statusRedHatchLow)",    strip: "url(#statusRedHatch)" },
+};
+
+const STATUS_BAND_OPACITY: Record<TrackStatusCode, number> = {
+  Yellow:       1,    // pattern fill already low-opacity
+  SCDeployed:   0.14,
+  VSCDeployed:  0.14,
+  Red:          1,    // pattern fill already low-opacity
+};
+
+const STATUS_STRIP_OPACITY: Record<TrackStatusCode, number> = {
+  Yellow:       1,
+  SCDeployed:   0.85,
+  VSCDeployed:  0.7,
+  Red:          1,
+};
 
 type RaceStint = {
   stint_idx: number;
@@ -84,7 +104,8 @@ type Row = {
   dnfAtLap: number | null;
 };
 
-type TooltipData = {
+type StintTooltipData = {
+  kind: "stint";
   tla: string;
   stintIdx: number;
   totalStints: number;
@@ -96,6 +117,16 @@ type TooltipData = {
   dnfAtLap: number | null;
   isLastStint: boolean;
 };
+
+type StatusTooltipData = {
+  kind: "status";
+  status: TrackStatusCode;
+  startLap: number;
+  endLap: number;
+  laps: number;
+};
+
+type TooltipData = StintTooltipData | StatusTooltipData;
 
 function prepareRows(drivers: Driver[], sessionKey: "R" | "S"): Row[] {
   return drivers
@@ -126,7 +157,6 @@ const TOOLTIP_STYLES: CSSProperties = {
 };
 
 export function StrategyChart({ drivers, sessionKey, totalLaps, statusBands }: Props) {
-  void statusBands;
   const rows = prepareRows(drivers, sessionKey);
   const {
     tooltipData,
@@ -163,6 +193,59 @@ export function StrategyChart({ drivers, sessionKey, totalLaps, statusBands }: P
 
           return (
             <svg width={width} height={height} role="img" aria-label="Race strategy chart">
+              <defs>
+                <pattern id="statusYellowHatch" patternUnits="userSpaceOnUse" width={6} height={6} patternTransform="rotate(45)">
+                  <rect width={6} height={6} fill="#eab308" fillOpacity={0.55} />
+                  <rect width={3} height={6} fill="#ca8a04" fillOpacity={0.75} />
+                </pattern>
+                <pattern id="statusYellowHatchLow" patternUnits="userSpaceOnUse" width={6} height={6} patternTransform="rotate(45)">
+                  <rect width={6} height={6} fill="#eab308" fillOpacity={0.14} />
+                  <rect width={3} height={6} fill="#ca8a04" fillOpacity={0.2} />
+                </pattern>
+                <pattern id="statusRedHatch" patternUnits="userSpaceOnUse" width={6} height={6} patternTransform="rotate(45)">
+                  <rect width={6} height={6} fill="#dc2626" fillOpacity={0.55} />
+                  <rect width={3} height={6} fill="#991b1b" fillOpacity={0.75} />
+                </pattern>
+                <pattern id="statusRedHatchLow" patternUnits="userSpaceOnUse" width={6} height={6} patternTransform="rotate(45)">
+                  <rect width={6} height={6} fill="#dc2626" fillOpacity={0.14} />
+                  <rect width={3} height={6} fill="#991b1b" fillOpacity={0.18} />
+                </pattern>
+              </defs>
+              {statusBands.map((b, idx) => {
+                const x0 = xScale(b.start_lap);
+                const x1 = xScale(b.end_lap + 1);
+                const fill = STATUS_FILL[b.status];
+                const onMove = (e: React.MouseEvent<SVGRectElement>) => {
+                  const svg = (e.currentTarget as SVGElement).ownerSVGElement;
+                  const rect = svg?.getBoundingClientRect();
+                  showTooltip({
+                    tooltipLeft: rect ? e.clientX - rect.left : e.clientX,
+                    tooltipTop:  rect ? e.clientY - rect.top  : e.clientY,
+                    tooltipData: {
+                      kind: "status",
+                      status: b.status,
+                      startLap: b.start_lap,
+                      endLap: b.end_lap,
+                      laps: b.end_lap - b.start_lap + 1,
+                    },
+                  });
+                };
+                return (
+                  <rect
+                    key={`band-${idx}`}
+                    x={x0}
+                    y={PAD.top}
+                    width={Math.max(x1 - x0, 0)}
+                    height={rows.length * ROW_H}
+                    fill={fill.band}
+                    fillOpacity={STATUS_BAND_OPACITY[b.status]}
+                    data-testid="status-band"
+                    data-status={b.status}
+                    onMouseMove={onMove}
+                    onMouseLeave={hideTooltip}
+                  />
+                );
+              })}
               {rows.map((row, i) => {
                 const y = yScale(i)!;
                 return (
@@ -199,6 +282,7 @@ export function StrategyChart({ drivers, sessionKey, totalLaps, statusBands }: P
                                 tooltipLeft: rect ? e.clientX - rect.left : e.clientX,
                                 tooltipTop: rect ? e.clientY - rect.top : e.clientY,
                                 tooltipData: {
+                                  kind: "stint",
                                   tla: row.driver.tla,
                                   stintIdx: s.stint_idx,
                                   totalStints: row.stints.length,
@@ -256,6 +340,54 @@ export function StrategyChart({ drivers, sessionKey, totalLaps, statusBands }: P
                   </Group>
                 );
               })}
+              {statusBands.length > 0 && (
+                <>
+                  {/* Green AllClear baseline behind the strip, spanning the full chart. */}
+                  <rect
+                    x={leftCol}
+                    y={4}
+                    width={Math.max(width - PAD.right - leftCol, 0)}
+                    height={6}
+                    fill="#10b981"
+                    fillOpacity={0.28}
+                  />
+                  {statusBands.map((b, idx) => {
+                    const x0 = xScale(b.start_lap);
+                    const x1 = xScale(b.end_lap + 1);
+                    const fill = STATUS_FILL[b.status];
+                    const onMove = (e: React.MouseEvent<SVGRectElement>) => {
+                      const svg = (e.currentTarget as SVGElement).ownerSVGElement;
+                      const rect = svg?.getBoundingClientRect();
+                      showTooltip({
+                        tooltipLeft: rect ? e.clientX - rect.left : e.clientX,
+                        tooltipTop:  rect ? e.clientY - rect.top  : e.clientY,
+                        tooltipData: {
+                          kind: "status",
+                          status: b.status,
+                          startLap: b.start_lap,
+                          endLap: b.end_lap,
+                          laps: b.end_lap - b.start_lap + 1,
+                        },
+                      });
+                    };
+                    return (
+                      <rect
+                        key={`strip-${idx}`}
+                        x={x0}
+                        y={4}
+                        width={Math.max(x1 - x0, 0)}
+                        height={6}
+                        fill={fill.strip}
+                        fillOpacity={STATUS_STRIP_OPACITY[b.status]}
+                        data-testid="status-strip-segment"
+                        data-status={b.status}
+                        onMouseMove={onMove}
+                        onMouseLeave={hideTooltip}
+                      />
+                    );
+                  })}
+                </>
+              )}
               <AxisBottom
                 scale={xScale}
                 top={PAD.top + rows.length * ROW_H + 4}
@@ -275,20 +407,24 @@ export function StrategyChart({ drivers, sessionKey, totalLaps, statusBands }: P
         }}
       </ParentSize>
       {tooltipOpen && tooltipData && (
-        <TooltipWithBounds
-          top={tooltipTop}
-          left={tooltipLeft}
-          style={TOOLTIP_STYLES}
-        >
-          <div>
-            {tooltipData.tla} · Stint {tooltipData.stintIdx + 1} / {tooltipData.totalStints}
-          </div>
-          <div>
-            {tooltipData.compound} · laps {tooltipData.startLap}–{tooltipData.endLap} ({tooltipData.laps} laps)
-          </div>
-          <div>{tooltipData.isNew ? "New set" : "Used set"}</div>
-          {tooltipData.dnfAtLap != null && tooltipData.isLastStint && (
-            <div>Retired at lap {tooltipData.dnfAtLap}</div>
+        <TooltipWithBounds top={tooltipTop} left={tooltipLeft} style={TOOLTIP_STYLES}>
+          {tooltipData.kind === "stint" ? (
+            <>
+              <div>
+                {tooltipData.tla} · Stint {tooltipData.stintIdx + 1} / {tooltipData.totalStints}
+              </div>
+              <div>
+                {tooltipData.compound} · laps {tooltipData.startLap}–{tooltipData.endLap} ({tooltipData.laps} laps)
+              </div>
+              <div>{tooltipData.isNew ? "New set" : "Used set"}</div>
+              {tooltipData.dnfAtLap != null && tooltipData.isLastStint && (
+                <div>Retired at lap {tooltipData.dnfAtLap}</div>
+              )}
+            </>
+          ) : (
+            <div>
+              {STATUS_LABEL[tooltipData.status]} · lap {tooltipData.startLap}–{tooltipData.endLap} ({tooltipData.laps} laps)
+            </div>
           )}
         </TooltipWithBounds>
       )}
